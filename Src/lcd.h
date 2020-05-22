@@ -156,9 +156,5 @@ void LCD_PrintStringCentered(char* str, uint8_t sz);
 
 uint8_t uintToStr(char* buf, uint16_t dist);
 
-// Pin configuration
-void configPinB_AF0(uint8_t x);
-void configGPIOB_output(uint8_t pin);
-
 
 #endif /* __LCD_H */

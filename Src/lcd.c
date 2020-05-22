@@ -5,6 +5,7 @@
  *          using GPIOB pins.
  */
 #include "lcd.h"
+#include "pinconfig.h"
 
 LCD *thisScreen;
 
@@ -251,50 +252,4 @@ uint8_t uintToStr(char *buf, uint16_t dist) {
     }
     
     return charsWritten;
-}
-
-/*
- * Generic GPIOB configuration function
- * Pass in the pin number, x, of the GPIO on PBx
- * Configures pin to general-pupose output mode, push-pull output,
- * low-speed, and no pull-up/down resistors
- */
-void configGPIOB_output(uint8_t pin) {
-  uint32_t shift2x = 2*pin;
-  uint32_t shift2xp1 = shift2x+1;
-  
-  // Set General Pupose Output
-  GPIOB->MODER |= (1 << shift2x);
-  GPIOB->MODER &= ~(1 << shift2xp1);
-  // Set to Push-pull
-  GPIOB->OTYPER &= ~(1 << pin);
-  // Set to Low speed
-  GPIOB->OSPEEDR &= ~((1 << shift2x) | (1 << shift2xp1));
-  // Set to no pull-up/down
-  GPIOB->PUPDR &= ~((1 << shift2x) | (1 << shift2xp1));
-}
-
-/*
- * GPIOB Pin configuration function
- * Pass in the pin number, x
- * Configures pin to alternate function mode, push-pull output,
- * low-speed, no pull-up/down resistors, and AF0
- */
-void configPinB_AF0(uint8_t x) {
-  // Set to Alternate function mode, 10
-  GPIOB->MODER &= ~(1 << (2*x));
-  GPIOB->MODER |= (1 << ((2*x)+1));
-  // Set to Push-pull
-  GPIOB->OTYPER &= ~(1 << x);
-  // Set to Low speed
-  GPIOB->OSPEEDR |= ((1 << (2*x)) | (1 << ((2*x)+1)));
-  // Set to no pull-up/down
-  GPIOB->PUPDR &= ~((1 << (2*x)) | (1 << ((2*x)+1)));
-  // Set alternate functon to AF0, SPI2
-  if (x < 8) {  // use AFR low register
-    GPIOB->AFR[0] &= ~(0xF << (4*x));
-  }
-  else {  // use AFR high register
-    GPIOB->AFR[1] &= ~(0xF << (4*(x-8)));
-  }
 }

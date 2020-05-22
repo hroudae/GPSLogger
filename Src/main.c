@@ -1,4 +1,3 @@
-/* USER CODE BEGIN Header */
 /**
   ******************************************************************************
   * @file           : main.c
@@ -16,11 +15,11 @@
   *
   ******************************************************************************
   */
-/* USER CODE END Header */
 
-/* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "pinconfig.h"
 #include "lcd.h"
+#include "openlog.h"
 #include "fatfs.h"
 
 
@@ -35,7 +34,7 @@
 #define SCL_B 8
 #define SDA_B 9
 
-// UART Pins for SD Card (UART3)
+// UART Pins for SD Card (USART3)
 #define TX_B 10
 #define RX_B 11
 #define RTS_B 14
@@ -49,7 +48,6 @@
 
 void SystemClock_Config(void);
 
-void configGPIOC_output(uint8_t pin);
 void toggleLED(uint8_t x);
 
 /**
@@ -75,6 +73,10 @@ int main(void) {
     // Set up LCD screen
     LCD screen = { SCK_B, MOSI_B, SCE_B, DC_B, RST_B };
     LCD_Setup(&screen);
+
+    // Setup OpenLog
+    OPENLOG sdcard = { TX_B, RX_B, RTS_B, 9600 };
+    OPENLOG_Setup(&sdcard);
 
     uint8_t colorOn = 1;
 
@@ -104,27 +106,6 @@ void toggleLED(uint8_t x) {
         GPIOC->BRR = (1 << x);
     else	// PCx is low
         GPIOC->BSRR = (1 << x);
-}
-
-/*
- * Generic GPIOC configuration function
- * Pass in the pin number, x, of the GPIO on PCx
- * Configures pin to general-pupose output mode, push-pull output,
- * low-speed, and no pull-up/down resistors
- */
-void configGPIOC_output(uint8_t pin) {
-    uint32_t shift2x = 2*pin;
-    uint32_t shift2xp1 = shift2x+1;
-    
-    // Set General Pupose Output
-    GPIOC->MODER |= (1 << shift2x);
-    GPIOC->MODER &= ~(1 << shift2xp1);
-    // Set to Push-pull
-    GPIOC->OTYPER &= ~(1 << pin);
-    // Set to Low speed
-    GPIOC->OSPEEDR &= ~((1 << shift2x) | (1 << shift2xp1));
-    // Set to no pull-up/down
-    GPIOC->PUPDR &= ~((1 << shift2x) | (1 << shift2xp1));
 }
 
 
