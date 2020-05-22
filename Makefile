@@ -37,6 +37,7 @@ BUILD_DIR = build
 # C sources
 C_SOURCES =  \
 Src/main.c \
+Src/lcd.c \
 Src/user_diskio.c \
 Src/fatfs.c \
 Src/stm32f0xx_it.c \

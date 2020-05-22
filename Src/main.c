@@ -20,18 +20,36 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "lcd.h"
 #include "fatfs.h"
 
 
-#define redLED 6
-#define blueLED 7
-#define orangeLED 8
-#define greenLED 9
+// SPI Pins for LCD (SPI2)
+#define SCK_B 13	// system clock
+#define MOSI_B 15 // send data
+#define DC_B 5		// mode select
+#define RST_B 6		// reset
+#define SCE_B 7		// chip select
+
+// I2C Pins for GPS (I2C1)
+#define SCL_B 8
+#define SDA_B 9
+
+// UART Pins for SD Card (UART3)
+#define TX_B 10
+#define RX_B 11
+#define RTS_B 14
+
+// LED Pins on GPIOC
+#define RED_LED 6
+#define BLUE_LED 7
+#define ORANGE_LED 8
+#define GREEN_LED 9
 
 
 void SystemClock_Config(void);
 
-void configLED(uint8_t x);
+void configGPIOC_output(uint8_t pin);
 void toggleLED(uint8_t x);
 
 /**
@@ -39,54 +57,74 @@ void toggleLED(uint8_t x);
   * @retval int
   */
 int main(void) {
-  HAL_Init();
-  SystemClock_Config();
-  MX_FATFS_Init();
+    HAL_Init();
+    SystemClock_Config();
+    MX_FATFS_Init();
 
-  RCC->AHBENR |= RCC_AHBENR_GPIOCEN; // Enable GPIOC clock in RCC for LEDS
+    RCC->AHBENR |= RCC_AHBENR_GPIOCEN; // Enable GPIOC clock in RCC for LEDS
 
-  configLED(redLED); 
-	configLED(blueLED);
+    // initialize LEDs
+    configGPIOC_output(RED_LED);
+    configGPIOC_output(GREEN_LED);
+    configGPIOC_output(BLUE_LED);
+    configGPIOC_output(ORANGE_LED);
 
-  GPIOC->BSRR = (1 << redLED); // Start high
-	GPIOC->BRR = (1 << blueLED); // Start low
+    GPIOC->BSRR = (1 << RED_LED); // Start high
+    GPIOC->BRR = (1 << BLUE_LED); // Start low
 
-  while (1) {
-    //LEDs toggle every 200ms
-		HAL_Delay(200); // Delay 200ms
-	
-		// Toggle the output state
-		toggleLED(redLED);
-		toggleLED(blueLED);
-  }
-}
+    // Set up LCD screen
+    LCD screen = { SCK_B, MOSI_B, SCE_B, DC_B, RST_B };
+    LCD_Setup(&screen);
 
-/*
- * Generic LED configuration function
- * Pass in the pin number, x, of the LED on PCx
- * Configures pin to general-pupose output mode, push-pull output,
- * low-speed, and no pull-up/down resistors
- */
-void configLED(uint8_t x) {
-	// Set General Pupose Output
-	GPIOC->MODER |= (1 << (2*x));
-	GPIOC->MODER &= ~(1 << ((2*x)+1));
-	// Set to Push-pull
-	GPIOC->OTYPER &= ~(1 << x);
-	// Set to Low speed
-	GPIOC->OSPEEDR &= ~((1 << (2*x)) | (1 << ((2*x)+1)));
-	// Set to no pull-up/down
-	GPIOC->PUPDR &= ~((1 << (2*x)) | (1 << ((2*x)+1)));
+    uint8_t colorOn = 1;
+
+    while (1) {
+        LCD_ClearRow(0, 0);
+        LCD_Reset();
+        switch(colorOn++ % 2) {
+            case 0: LCD_PrintStringCentered("BLUE ON", 7); break;
+            case 1: LCD_PrintStringCentered("RED ON", 6); break;
+            default: LCD_PrintStringCentered("ERROR", 5);
+        }
+
+        //LEDs toggle every 200ms
+        HAL_Delay(2000); // Delay 200ms
+        
+        // Toggle the output state
+        toggleLED(RED_LED);
+        toggleLED(BLUE_LED);
+    }
 }
 
 /*
  * Toogle LED at PCx
  */
 void toggleLED(uint8_t x) {
-	if (GPIOC->ODR & (1 << x)) // PCx is high
-			GPIOC->BRR = (1 << x);
-		else	// PCx is low
-			GPIOC->BSRR = (1 << x);
+    if (GPIOC->ODR & (1 << x)) // PCx is high
+        GPIOC->BRR = (1 << x);
+    else	// PCx is low
+        GPIOC->BSRR = (1 << x);
+}
+
+/*
+ * Generic GPIOC configuration function
+ * Pass in the pin number, x, of the GPIO on PCx
+ * Configures pin to general-pupose output mode, push-pull output,
+ * low-speed, and no pull-up/down resistors
+ */
+void configGPIOC_output(uint8_t pin) {
+    uint32_t shift2x = 2*pin;
+    uint32_t shift2xp1 = shift2x+1;
+    
+    // Set General Pupose Output
+    GPIOC->MODER |= (1 << shift2x);
+    GPIOC->MODER &= ~(1 << shift2xp1);
+    // Set to Push-pull
+    GPIOC->OTYPER &= ~(1 << pin);
+    // Set to Low speed
+    GPIOC->OSPEEDR &= ~((1 << shift2x) | (1 << shift2xp1));
+    // Set to no pull-up/down
+    GPIOC->PUPDR &= ~((1 << shift2x) | (1 << shift2xp1));
 }
 
 
