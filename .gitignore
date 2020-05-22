@@ -2,6 +2,6 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
-gpslogger-wrksp.code-workspace
+gpslogger.code-workspace
 .mxproject
 GPSLogger.ioc
