@@ -4,7 +4,6 @@
  *          reader via USART3
  */
 #include "openlog.h"
-#include "pinconfig.h"
 
 
 /*

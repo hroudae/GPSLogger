@@ -6,7 +6,7 @@
 #ifndef __OPENLOG_H
 #define __OPENLOG_H
 
-#include "stm32f0xx_hal.h"
+#include "pinconfig.h"
 
 // Holds UART pin and baud rate information
 typedef struct {
