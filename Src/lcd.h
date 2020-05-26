@@ -154,7 +154,5 @@ void LCD_PrintString(char* str, int sz);
 void LCD_PrintAll(void);
 void LCD_PrintStringCentered(char* str, uint8_t sz);
 
-uint8_t uintToStr(char* buf, uint16_t dist);
-
 
 #endif /* __LCD_H */
