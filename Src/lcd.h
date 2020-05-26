@@ -7,7 +7,7 @@
 #ifndef __LCD_H
 #define __LCD_H
 
-#include "stm32f0xx_hal.h"
+#include "utilities.h"
 
 // some command bytes
 #define COMMAND_DISPLAY_FILL  0x09
@@ -155,10 +155,6 @@ void LCD_PrintAll(void);
 void LCD_PrintStringCentered(char* str, uint8_t sz);
 
 uint8_t uintToStr(char* buf, uint16_t dist);
-
-// Pin configuration
-void configPinB_AF0(uint8_t x);
-void configGPIOB_output(uint8_t pin);
 
 
 #endif /* __LCD_H */
