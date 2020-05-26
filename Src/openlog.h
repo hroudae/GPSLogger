@@ -6,13 +6,13 @@
 #ifndef __OPENLOG_H
 #define __OPENLOG_H
 
-#include "pinconfig.h"
+#include "utilities.h"
 
 // Holds UART pin and baud rate information
-typedef struct {
-    uint8_t uart_tx;
-    uint8_t uart_rx;
-    uint8_t uart_rts;
+typedef struct {        // OpenLog pins
+    uint8_t uart_tx;    // RXI
+    uint8_t uart_rx;    // TXO
+    uint8_t uart_rts;   // GRN
     uint32_t uart_baud;
 } OPENLOG;
 

@@ -3,7 +3,7 @@
  * Purpose: Defines all functions that configure GPIO pins in various ways
  */
 
-#include "pinconfig.h"
+#include "utilities.h"
 
 
 /*

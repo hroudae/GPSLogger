@@ -7,7 +7,7 @@
 #ifndef __LCD_H
 #define __LCD_H
 
-#include "pinconfig.h"
+#include "utilities.h"
 
 // some command bytes
 #define COMMAND_DISPLAY_FILL  0x09

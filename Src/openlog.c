@@ -5,6 +5,7 @@
  */
 #include "openlog.h"
 
+uint8_t resetSequence = 0;
 
 /*
  * Setup the USART3 subsytem and the GPIO pins
@@ -17,7 +18,7 @@ void OPENLOG_Setup(OPENLOG *openLog) {
 
     configPinB_AF4(thisOpenLog->uart_tx);
     configPinB_AF4(thisOpenLog->uart_rx);
-    configPinB_AF4(thisOpenLog->uart_rts);
+    configPinB_AF4(thisOpenLog->uart_rts);  // Should this be a general output instead?
 
     OPENLOG_SetBaudRate(thisOpenLog->uart_baud);
 
@@ -43,8 +44,26 @@ void OPENLOG_SetBaudRate(uint32_t rate) {
 }
 
 /*
+ * Reset OpenLogk to a kown state
+ */
+ void resetOpenLog(void) {
+    resetSequence = 1;
+
+    GPIOB->BRR = (1 << thisOpenLog->uart_rts);
+    HAL_Delay(10);
+    GPIOB->BSRR = (1 << thisOpenLog->uart_rts);
+ }
+
+/*
  * USART3 or 4 interrupt request handler
  */
 void USART3_4_IRQHandler(void) {
+    if (((USART3->ISR & USART_ISR_RXNE_Msk) >> USART_ISR_RXNE_Pos) != 1) return;
 
+    uint8_t recvValue = USART3->RDR;
+
+    // if in reset sequence, a received < means OpenLog is ready to receive data
+    // if it's not that, something has gone wrong so spin
+    if (resetSequence && recvValue != '<') while(1);
+    else if (resetSequence) setLED(GREEN_LED);
 }

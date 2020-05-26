@@ -39,6 +39,7 @@ C_SOURCES =  \
 Src/main.c \
 Src/lcd.c \
 Src/pinconfig.c \
+Src/utilities.c \
 Src/openlog.c \
 Src/user_diskio.c \
 Src/fatfs.c \

@@ -17,7 +17,7 @@
   */
 
 #include "main.h"
-#include "pinconfig.h"
+#include "utilities.h"
 #include "lcd.h"
 #include "openlog.h"
 #include "fatfs.h"
@@ -39,16 +39,8 @@
 #define RX_B 11
 #define RTS_B 14
 
-// LED Pins on GPIOC
-#define RED_LED 6
-#define BLUE_LED 7
-#define ORANGE_LED 8
-#define GREEN_LED 9
-
 
 void SystemClock_Config(void);
-
-void toggleLED(uint8_t x);
 
 /**
   * @brief  The application entry point.
@@ -96,16 +88,6 @@ int main(void) {
         toggleLED(RED_LED);
         toggleLED(BLUE_LED);
     }
-}
-
-/*
- * Toogle LED at PCx
- */
-void toggleLED(uint8_t x) {
-    if (GPIOC->ODR & (1 << x)) // PCx is high
-        GPIOC->BRR = (1 << x);
-    else	// PCx is low
-        GPIOC->BSRR = (1 << x);
 }
 
 
