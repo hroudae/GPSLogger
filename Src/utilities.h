@@ -20,6 +20,13 @@ void setLED(uint8_t led);
 void clearLED(uint8_t led);
 void toggleLED(uint8_t led);
 
+uint8_t uintToStr(char* buf, uint16_t dist);
+
+// usart.c
+void USART3_SetBaudRate(uint32_t rate);
+void USART3_SendChar(char c);
+void USART3_SendStr(char* str);
+
 // pincofing.c
 // GPIOB pins
 void configGPIOB_output(uint8_t pin);

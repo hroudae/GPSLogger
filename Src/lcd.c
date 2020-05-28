@@ -12,13 +12,13 @@ LCD *thisScreen;
  * Setups up the needed SPI2 and general IO pins and the SPI2 subsystem
  */
 void LCD_Setup(LCD *screen) {
-  RCC->APB1ENR |= RCC_APB1ENR_SPI2EN; //Enable SPI2 clock
-  RCC->AHBENR |= RCC_AHBENR_GPIOBEN;  // Enable GPIOB clock
+    RCC->APB1ENR |= RCC_APB1ENR_SPI2EN; //Enable SPI2 clock
+    RCC->AHBENR |= RCC_AHBENR_GPIOBEN;  // Enable GPIOB clock
   
     thisScreen = screen;
     
     // configure SPI2 Pins
-  configPinB_AF0(thisScreen->data_in);
+    configPinB_AF0(thisScreen->data_in);
     configPinB_AF0(thisScreen->sclk);
     // configure general IO pins
     configGPIOB_output(thisScreen->chip_select);
@@ -230,25 +230,4 @@ void LCD_PrintStringCentered(char* str, uint8_t sz) {
     
     LCD_SetX((84-numCol)/2);
     LCD_PrintString(str, sz);
-}
-
-/*
- * convert an unsigned int to a string and return the number of characters
- */ 
-uint8_t uintToStr(char *buf, uint16_t dist) {
-    uint8_t charsWritten = 0;
-    // get the character for each digit
-    do {
-        buf[charsWritten++] = '0' + (dist % 10);
-        dist /= 10;
-    } while (dist > 0);
-    
-    // need to reverse the order in the array
-    for (int i = 0, j = charsWritten-1; i < j; i++, j--) {
-        char temp = buf[i];
-        buf[i] = buf[j];
-        buf[j] = temp;
-    }
-    
-    return charsWritten;
 }
