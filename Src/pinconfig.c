@@ -43,12 +43,39 @@ void configPinB_AF0(uint8_t x) {
     GPIOB->OSPEEDR |= ((1 << (2*x)) | (1 << ((2*x)+1)));
     // Set to no pull-up/down
     GPIOB->PUPDR &= ~((1 << (2*x)) | (1 << ((2*x)+1)));
-    // Set alternate functon to AF0, SPI2
+    // Set alternate functon to AF0
     if (x < 8) {  // use AFR low register
         GPIOB->AFR[0] &= ~(0xF << (4*x));
     }
     else {  // use AFR high register
         GPIOB->AFR[1] &= ~(0xF << (4*(x-8)));
+    }
+}
+
+/*
+ * GPIOB Pin configuration function
+ * Pass in the pin number, x
+ * Configures pin to alternate function mode, push-pull output,
+ * low-speed, no pull-up/down resistors, and AF1
+ */
+void configPinB_AF1(uint8_t x) {
+    // Set to Alternate function mode, 10
+    GPIOB->MODER &= ~(1 << (2*x));
+    GPIOB->MODER |= (1 << ((2*x)+1));
+    // Set to Push-pull
+    GPIOB->OTYPER &= ~(1 << x);
+    // Set to Low speed
+    GPIOB->OSPEEDR |= ((1 << (2*x)) | (1 << ((2*x)+1)));
+    // Set to no pull-up/down
+    GPIOB->PUPDR &= ~((1 << (2*x)) | (1 << ((2*x)+1)));
+    // Set alternate functon to AF1
+    if (x < 8) {  // use AFR low register
+        GPIOB->AFR[0] &= ~(0xF << (4*x));
+        GPIOB->AFR[0] |= (0x1 << (4*x));
+    }
+    else {  // use AFR high register
+        GPIOB->AFR[1] &= ~(0xF << (4*(x-8)));
+        GPIOB->AFR[1] |= (0x1 << (4*(x-8)));
     }
 }
 
@@ -68,7 +95,7 @@ void configPinB_AF4(uint8_t x) {
     GPIOB->OSPEEDR &= ~((1 << (2*x)) | (1 << ((2*x)+1)));
     // Set to no pull-up/down
     GPIOB->PUPDR &= ~((1 << (2*x)) | (1 << ((2*x)+1)));
-    // Set alternate functon to AF4, USART3 0100
+    // Set alternate functon to AF4
     if (x < 8) {  // use AFR low register
         GPIOB->AFR[0] &= ~(0xF << (4*x));
         GPIOB->AFR[0] |= (0x4 << (4*x));

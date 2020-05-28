@@ -7,7 +7,7 @@
 #include "openlog.h"
 #include "stdio.h"
 
-volatile enum MODE mode = RST_SEQ;
+volatile enum MODE mode;
 
 /*
  * Setup the USART3 subsytem and the GPIO pins
@@ -17,6 +17,7 @@ void OPENLOG_Setup(OPENLOG *openLog) {
     RCC->AHBENR |= RCC_AHBENR_GPIOBEN;  // Enable GPIOB clock
 
     thisOpenLog = openLog;
+    mode = RST_SEQ;
 
     configPinB_AF4(thisOpenLog->uart_tx);
     configPinB_AF4(thisOpenLog->uart_rx);

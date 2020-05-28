@@ -20,6 +20,7 @@
 #include "utilities.h"
 #include "lcd.h"
 #include "openlog.h"
+#include "gps.h"
 #include "fatfs.h"
 
 
