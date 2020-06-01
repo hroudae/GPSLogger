@@ -42,6 +42,8 @@ Src/pinconfig.c \
 Src/utilities.c \
 Src/openlog.c \
 Src/usart.c \
+Src/gps.c \
+Src/i2c.c \
 Src/user_diskio.c \
 Src/fatfs.c \
 Src/stm32f0xx_it.c \

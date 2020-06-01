@@ -6,8 +6,18 @@
  */
 #include "openlog.h"
 #include "stdio.h"
+#include "lcd.h"
 
-volatile enum MODE mode = RST_SEQ;
+volatile enum MODE mode;
+
+uint8_t rst_seq_frame;
+const char *RST_SEQ_OK = "12<";
+
+uint8_t ent_cmd_md_frame;
+const char *ENT_CMD_MD_OK = "~>";
+
+uint8_t init_cmd_md_frame;
+const char *INIT_CMD_MD_OK = "\r\n<";
 
 /*
  * Setup the USART3 subsytem and the GPIO pins
@@ -17,10 +27,12 @@ void OPENLOG_Setup(OPENLOG *openLog) {
     RCC->AHBENR |= RCC_AHBENR_GPIOBEN;  // Enable GPIOB clock
 
     thisOpenLog = openLog;
+    mode = RST_SEQ;
 
     configPinB_AF4(thisOpenLog->uart_tx);
     configPinB_AF4(thisOpenLog->uart_rx);
-    configPinB_AF4(thisOpenLog->uart_rts);  // Should this be a general output instead?
+    configGPIOB_output(thisOpenLog->uart_rts);  // Should this be a general output instead?
+    GPIOB->BSRR = (1 << thisOpenLog->uart_rts);
 
     USART3_SetBaudRate(thisOpenLog->uart_baud);
 
@@ -34,17 +46,28 @@ void OPENLOG_Setup(OPENLOG *openLog) {
 	// enable the interrupt and set it to highest priority
     NVIC_EnableIRQ(USART3_4_IRQn);
 	NVIC_SetPriority(USART3_4_IRQn, 0);
+
+    LCD_ClearDisplay();
+    LCD_PrintStringCentered("ABOUT TO RST");
+    HAL_Delay(100);
+
+    OPENLOG_ResetSequence();
+    LCD_ClearDisplay();
+    LCD_PrintStringCentered("RST DONE");
 }
 
 /*
- * Reset OpenLogk to a kown state
+ * Reset OpenLog to a kown state
  */
- void resetOpenLog(void) {
+ void OPENLOG_ResetSequence(void) {
     mode = RST_SEQ;
+    rst_seq_frame = 0;
 
     GPIOB->BRR = (1 << thisOpenLog->uart_rts);
     HAL_Delay(10);
     GPIOB->BSRR = (1 << thisOpenLog->uart_rts);
+
+    while (mode != RDY);
  }
 
 /*
@@ -52,25 +75,35 @@ void OPENLOG_Setup(OPENLOG *openLog) {
  */
 void OPENLOG_USART3ReceivedInterrupt() {
     if (!(USART3->ISR & USART_ISR_RXNE_Msk)) return;
-
     uint8_t recvValue = USART3->RDR;
 
-    // if in reset sequence, a received < means OpenLog is ready to receive data
+    // if in reset sequence, a received 12< means OpenLog is ready to receive data
     // if it's not that, something has gone wrong so spin
-    // TODO will this actually be a 12<?
-    if (mode == RST_SEQ && recvValue != '<') while(1);
-    else if (mode == RST_SEQ) {
+    if (mode == RST_SEQ && recvValue != RST_SEQ_OK[rst_seq_frame]) {LCD_ClearDisplay();LCD_PrintStringCentered("RST SEQ ERROR");while(1);}
+    else if (mode == RST_SEQ && rst_seq_frame < 2) {
+        rst_seq_frame++;
+    }
+    else if (mode == RST_SEQ && rst_seq_frame == 2) {
         setLED(GREEN_LED);
         mode = RDY;
+        LCD_ClearDisplay();LCD_PrintStringCentered("RDY");
     }
-    // if trying to enter command mode, a > means OpenLog is now in command mode and
+    // if trying to enter command mode, a ~> means OpenLog is now in command mode and
     // ready to receive commands
-    else if (mode == INIT_CMD && (recvValue != '>' || recvValue != '<')) while(1);
-    else if (mode == INIT_CMD && recvValue == '>') {
+    else if (mode == ENT_CMD && recvValue != ENT_CMD_MD_OK[ent_cmd_md_frame]) {LCD_ClearDisplay();LCD_PrintStringCentered("ENT CMD MD ERROR");while(1);}
+    else if (mode == ENT_CMD && ent_cmd_md_frame < 1) {
+        ent_cmd_md_frame++;
+    }
+    else if (mode == ENT_CMD && ent_cmd_md_frame == 1) {
         setLED(ORANGE_LED);
         mode = CMD_RDY;
+        LCD_ClearDisplay();LCD_PrintStringCentered("CMD RDY");
     }
-    else if (mode == INIT_CMD && recvValue == '<') {
+    else if (mode == INIT_CMD && recvValue != INIT_CMD_MD_OK[init_cmd_md_frame]) {LCD_ClearDisplay();LCD_PrintStringCentered("INIT CMD MD ERROR");while(1);}
+    else if (mode == INIT_CMD && init_cmd_md_frame < 2) {
+        init_cmd_md_frame++;
+    }
+    else if (mode == INIT_CMD && init_cmd_md_frame == 2) {
         mode = RDY;
     }
 }
@@ -79,38 +112,41 @@ void OPENLOG_USART3ReceivedInterrupt() {
  * Enter Command Mode for OpenLog by sending the CTRL+z character three times
  */
 void OPENLOG_EnterCommandMode() {
-    char ctrlZ[3] = { 26, 26, 26 };
-    mode = INIT_CMD;
+    char ctrlZ[4] = { 26, 26, 26, '\0' };
+    mode = ENT_CMD;
+    ent_cmd_md_frame = 0;
     USART3_SendStr(ctrlZ);
 }
 
 /*
  * Create a new file on the microSD card
  */
-void OPENLOG_NewFile(char* name, uint8_t len) {
+void OPENLOG_NewFile(char* name) {
     if (mode != CMD_RDY) {
         OPENLOG_EnterCommandMode();
         while (mode != CMD_RDY);
     }
 
     mode = INIT_CMD;
+    init_cmd_md_frame = 0;
     char cmd[32];
     sprintf(cmd, "new %s\r", name);
     USART3_SendStr(cmd);
-
-    
 }
 
 /*
  * Append text to the end of a file. If the file does not exist, it is created. msg needs to be null terminated
  */
-void OPENLOG_AppendFile(char* name, uint8_t len, char* msg) {
+void OPENLOG_AppendFile(char* name, char* msg) {
     if (mode != CMD_RDY) {
         OPENLOG_EnterCommandMode();
         while (mode != CMD_RDY);
     }
 
+    LCD_ClearDisplay();LCD_PrintStringCentered("SENDING CMD");
+
     mode = INIT_CMD;
+    init_cmd_md_frame = 0;
     char cmd[32];
     sprintf(cmd, "append %s\r", name);
     USART3_SendStr(cmd);
@@ -130,6 +166,7 @@ void OPENLOG_Init(void) {
     }
 
     mode = INIT_CMD;
+    init_cmd_md_frame = 0;
     char *cmd = "init\r";
 
     USART3_SendStr(cmd);
@@ -145,6 +182,7 @@ void OPENLOG_Sync(void) {
     }
 
     mode = INIT_CMD;
+    init_cmd_md_frame = 0;
     char *cmd = "sync\r";
 
     USART3_SendStr(cmd);
@@ -160,6 +198,7 @@ void OPENLOG_Reset(void){
     }
 
     mode = INIT_CMD;
+    init_cmd_md_frame = 0;
     char *cmd = "reset\r";
 
     USART3_SendStr(cmd);
