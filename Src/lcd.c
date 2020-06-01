@@ -5,6 +5,7 @@
  *          using GPIOB pins.
  */
 #include "lcd.h"
+#include "string.h"
 
 LCD *thisScreen;
 
@@ -200,9 +201,9 @@ void LCD_PrintCharacter(char c) {
 /*
  * Print a string on the screen
  */
-void LCD_PrintString(char* str, int sz) {
+void LCD_PrintString(char* str) {
     // print each character of the string
-    for (int i = 0; i < sz; i++) {
+    for (int i = 0; i < strlen(str); i++) {
         LCD_PrintCharacter(str[i]);
     }
 }
@@ -218,16 +219,16 @@ void LCD_PrintAll() {
 /*
  * center text in the row. the row must be set before calling this function
  */
-void LCD_PrintStringCentered(char* str, uint8_t sz) {
-    uint8_t numCol = sz*5; // each character takes up about 5 columns
+void LCD_PrintStringCentered(char* str) {
+    uint8_t numCol = strlen(str)*5; // each character takes up about 5 columns
     
     // empty columns are added before and after characters that use all 5 column, so take them into account
-    for (int i = 0; i < sz; i ++) {
+    for (int i = 0; i < strlen(str); i ++) {
         uint8_t *c = ascii_to_lcd[str[i]-' '];
         if (c[0] != 0x00) numCol++;
         if (c[4] != 0x00) numCol++;
     }
     
     LCD_SetX((84-numCol)/2);
-    LCD_PrintString(str, sz);
+    LCD_PrintString(str);
 }

@@ -71,23 +71,25 @@ int main(void) {
     OPENLOG sdcard = { TX_B, RX_B, RTS_B, 9600 };
     OPENLOG_Setup(&sdcard);
 
-    uint8_t colorOn = 1;
+    LCD_ClearDisplay();
+    LCD_PrintStringCentered("Writing to SD Card");
 
-    while (1) {
-        LCD_ClearRow(0, 0);
-        LCD_Reset();
-        switch(colorOn++ % 2) {
-            case 0: LCD_PrintStringCentered("BLUE ON", 7); break;
-            case 1: LCD_PrintStringCentered("RED ON", 6); break;
-            default: LCD_PrintStringCentered("ERROR", 5);
-        }
+    char *file = "gps.txt";
+    char *data = "I AM WRITING THIS DATA TO AN SD CARD!\n";
+    OPENLOG_AppendFile(file, data);
 
+    LCD_ClearDisplay();
+    LCD_PrintStringCentered("SD CARD WRITTEN!");
+
+    while (1) {    
         //LEDs toggle every 200ms
         HAL_Delay(2000); // Delay 200ms
         
         // Toggle the output state
         toggleLED(RED_LED);
         toggleLED(BLUE_LED);
+
+        USART3_SendStr("HI!\n");
     }
 }
 

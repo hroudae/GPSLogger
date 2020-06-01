@@ -69,7 +69,7 @@ void GPS_ParseData(char* data) {
         switch(data[i]) {
             case '$': currentProtocol = NMEA; NMEA_ByteNumber = 1; break;
             case 0xB5: currentProtocol = UBX; UBX_ByteNumber = 1; break;
-            case 0xD3: currentProtocol = RTCM; RTCM = 1; break;
+            case 0xD3: currentProtocol = RTCM; RTCM_ByteNumber = 1; break;
 
             // TODO PARSE DATA
         };

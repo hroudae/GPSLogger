@@ -24,7 +24,7 @@ void setLED(uint8_t led);
 void clearLED(uint8_t led);
 void toggleLED(uint8_t led);
 
-uint8_t uintToStr(char* buf, uint16_t dist);
+uint8_t uintToStr(char* buf, uint16_t number);
 
 // usart.c
 void USART3_SetBaudRate(uint32_t rate);

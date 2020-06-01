@@ -150,9 +150,9 @@ void LCD_SetY(uint8_t y);
 
 // printing characters on the screen
 void LCD_PrintCharacter(char c);
-void LCD_PrintString(char* str, int sz);
+void LCD_PrintString(char* str);
 void LCD_PrintAll(void);
-void LCD_PrintStringCentered(char* str, uint8_t sz);
+void LCD_PrintStringCentered(char* str);
 
 
 #endif /* __LCD_H */
