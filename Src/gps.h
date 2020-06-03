@@ -8,6 +8,7 @@
 #define __GPS_H
 
 #include "utilities.h"
+#include "nmea.h"
 
 #define GPS_I2C_ADDR 0x42
 
@@ -34,4 +35,4 @@ void GPS_Setup(GPS *gps);
 void GPS_GetData(char* buf);
 void GPS_ParseData(char* data);
 
-#endif /* __OGPS_H */
+#endif /* __GPS_H */
