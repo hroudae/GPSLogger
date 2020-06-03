@@ -32,7 +32,7 @@ GPS *thisGPS;
 
 void GPS_Setup(GPS *gps);
 
-void GPS_GetData(char* buf);
+uint8_t GPS_GetData(char* buf);
 void GPS_ParseData(char* data);
 
 #endif /* __GPS_H */

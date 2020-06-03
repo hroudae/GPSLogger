@@ -67,6 +67,9 @@ int main(void) {
     LCD screen = { SCK_B, MOSI_B, SCE_B, DC_B, RST_B };
     LCD_Setup(&screen);
 
+    GPS gps = { SCL_B, SDA_B };
+    GPS_Setup(&gps);
+
     // Setup OpenLog
     OPENLOG sdcard = { TX_B, RX_B, RTS_B, 9600 };
     OPENLOG_Setup(&sdcard);
@@ -89,7 +92,24 @@ int main(void) {
         toggleLED(RED_LED);
         toggleLED(BLUE_LED);
 
-        USART3_SendStr("HI!\n");
+        char buf[1024];
+        uint8_t stat = GPS_GetData(buf);
+        if (stat == 1) {
+            LCD_ClearDisplay();
+            LCD_PrintStringCentered("Error getting data!");
+            while(1);
+        }
+        else if (stat == 2) {
+            LCD_ClearDisplay();
+            LCD_PrintStringCentered("no data");   
+            continue;
+        }
+        else {
+            LCD_ClearDisplay();
+            LCD_PrintStringCentered(buf);
+
+            USART3_SendStr(buf);
+        }
     }
 }
 

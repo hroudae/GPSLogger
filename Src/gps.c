@@ -5,6 +5,7 @@
  */
 #include "gps.h"
 #include "string.h"
+#include "lcd.h"
 
 volatile enum PROTOCOL currentProtocol;
 
@@ -37,23 +38,28 @@ void GPS_Setup(GPS *gps) {
 /*
  * Get data from the GPS
  */
-void GPS_GetData(char *buf) {
+uint8_t GPS_GetData(char *buf) {
     // can either get number of bytes available, or poll the data stream register and 0xff means no data
     // if leave off reg addr, will automatically inc until 0xff; default is 0xff so can omit reg addr
 
     // Get available bytes
     uint32_t available_bytes = 0;
     char available_high[2], available_low[2];
-    if (I2C1_ReadStr(GPS_I2C_ADDR, AVAIL_BYTES_HIGH_REG, available_high, 1)) return; // something went wrong
-    if (I2C1_ReadStr(GPS_I2C_ADDR, AVAIL_BYTES_LOW_REG, available_low, 1)) return; // something went wrong
-    available_bytes = ((uint32_t)available_high[0] << 8) | (uint32_t)available_low[1];
+    if (I2C1_ReadStr(GPS_I2C_ADDR, AVAIL_BYTES_HIGH_REG, available_high, 1)) return 1; // something went wrong
+    if (I2C1_ReadStr(GPS_I2C_ADDR, AVAIL_BYTES_LOW_REG, available_low, 1)) return 1; // something went wrong
+    available_bytes = ((uint32_t)available_high[0] << 8) | (uint32_t)available_low[0];
+
+    if (available_bytes == 0) return 2; // no data available
     
     char data_stream[available_bytes+1];
-    if (I2C1_ReadStr(GPS_I2C_ADDR, DATA_STREAM_REG, data_stream, available_bytes)) return;
+    if (I2C1_ReadStr(GPS_I2C_ADDR, DATA_STREAM_REG, data_stream, available_bytes)) return 1;
 
+    data_stream[available_bytes] = '\0';
     GPS_ParseData(data_stream);
 
     buf = data_stream;
+
+    return 0;
 }
 
 /*
@@ -64,6 +70,8 @@ void GPS_GetData(char *buf) {
  */
 void GPS_ParseData(char* data) {
     uint32_t len = strlen(data);
+
+    return;
 
     for (uint32_t i = 0; i < len; i++) {
         switch(data[i]) {
