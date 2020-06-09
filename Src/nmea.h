@@ -6,14 +6,17 @@
 #ifndef __NMEA_H
 #define __NMEA_H
 
-// Talker IDs
-#define TALKER_ID_GPS     "GP"
-#define TALKER_ID_SBAS    "GP"
-#define TALKER_ID_QZSS    "GP"
-#define TALKER_ID_GLONASS "GL"
-#define TALKER_ID_GALILEO "GA"
-#define TALKER_ID_BEIDOU  "GB"
-#define TALKER_ID_COMBO   "GN"
+#include "utilities.h"
+
+// Talker IDs - https://www.nmea.org/Assets/20190303%20nmea%200183%20talker%20identifier%20mnemonics.pdf
+#define TALKER_ID_GPS       "GP"
+#define TALKER_ID_SBAS      "GP"
+#define TALKER_ID_QZSS      "GP"
+#define TALKER_ID_GLONASS   "GL"
+#define TALKER_ID_GALILEO   "GA"
+#define TALKER_ID_BEIDOU    "GB"
+#define TALKER_ID_COMBO     "GN"
+#define TALKER_ID_MICROPROC "UP"
 
 // Sentence Format names
 #define NMEA_DTM "DTM"
@@ -60,22 +63,57 @@
 #define NMEA_MAX_LEN_START    1
 #define NMEA_MAX_LEN_TALKERID 2
 #define NMEA_MAX_LEN_SENTENCE 3
+#define NMEA_MAX_LEN_ADDR     NMEA_MAX_LEN_TALKERID+NMEA_MAX_LEN_SENTENCE
 #define NMEA_MAX_LEN_DATA     71
 #define NMEA_MAX_LEN_CHECKSUM 3 // includes the '*'
 #define NMEA_MAX_LEN_END      2
 
-typedef struct {
-    char talker_id[2];  // depends on GNSS used
-    char sentence[3];   // message format
-} NMEA_ADDR;
+#define NMEA_RMC_LEN_TIME      9
+#define NMEA_RMC_LEN_STATUS    1
+#define NMEA_RMC_LEN_LAT       10
+#define NMEA_RMC_LEN_NS        1
+#define NMEA_RMC_LEN_LON       11
+#define NMEA_RMC_LEN_EW        1
+#define NMEA_RMC_LEN_SPD       NMEA_MAX_LEN_DATA
+#define NMEA_RMC_LEN_COG       NMEA_MAX_LEN_DATA
+#define NMEA_RMC_LEN_DATE      6
+#define NMEA_RMC_LEN_MV        NMEA_MAX_LEN_DATA
+#define NMEA_RMC_LEN_MVEW      1
+#define NMEA_RMC_LEN_POSMODE   1
+#define NMEA_RMC_LEN_NAVSTATUS 1
+
 
 typedef struct {
-    char start;         // '$'
-    NMEA_ADDR addr;     // talker ID and sentence formatter
-    char data[71];      // data delimited by ','; varried length; starts with ','
-    char checksum[3];   // '*' followed by two characters - XOR of all characaters in addr and data
-    char end[2];        // <CR><LF>
-} NMEA_MSG;
+    char* addr;     // talker ID and sentence formatter
+    char* data;      // data delimited by ','; varried length; starts with ','
+    int checksum;   // '*' followed by two characters - XOR of all characaters in addr and data
+} NMEA_POLL_MSG;
 
+typedef struct {
+    char* addr;      // talker ID and sentence formatter
+    char* time;      // UTC time - HHMMSS.SS
+    char* status;    // data validitiy status
+    char* lat;       // latitude - ddmm.mmmmm
+    char* ns;        // North/South indicator
+    char* lon;       // longitude - dddmm.mmmmm
+    char* ew;        // East/West indicator
+    char* spd;       // speed over ground
+    char* cog;       // course over ground
+    char* date;      // date in DDMMYY format
+    char* mv;        // magnetic variation value
+    char* mvew;      // magnetic variation E/W indicator
+    char* posmode;   // mode indicator
+    char* navstatus; // navigational status
+    int   checksum;  // '*' followed by two characters - XOR of all characaters in addr and data
+} NMEA_RMC_MSG;
+
+
+void NMEA_PollMsg(NMEA_POLL_MSG* msgstruct, uint8_t i2caddr);
+void NMEA_PollGNQ(char* msgid, uint8_t i2caddr);
+
+uint8_t NMEA_ParseData(char* data, NMEA_RMC_MSG *buf);
+void NMEA_ParseRMCData(char* data, NMEA_RMC_MSG *buf);
+
+int NMEA_Checksum(char* addr, char* msg);
 
 #endif /* __NMEA_H */

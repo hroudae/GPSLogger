@@ -63,7 +63,7 @@ void I2C1_SendChar(char c) {
 uint8_t I2C1_WriteStr(uint32_t addr, uint8_t reg, char *str) {
     uint32_t len = strlen(str) + 1;
 
-    I2C1_TransactionSetup(addr, 1, WRITE);
+    I2C1_TransactionSetup(addr, len, WRITE);
 
     for (uint32_t i = 0; i < len; i++) {
         // Check for TXIS or NACK flag set
@@ -79,6 +79,28 @@ uint8_t I2C1_WriteStr(uint32_t addr, uint8_t reg, char *str) {
         else { // send the message
             I2C1_SendChar(str[i-1]);
 		}
+    }
+
+    return 0;
+}
+
+/*
+ * Send a string of null-terminated data over I2C1 to no register. No stop condition is sent to allow restart condition
+ */
+uint8_t I2C1_WriteStrNoReg(uint32_t addr, char *str) {
+    uint32_t len = strlen(str);
+
+    I2C1_TransactionSetup(addr, len, WRITE);
+
+    for (uint32_t i = 0; i < len; i++) {
+        // Check for TXIS or NACK flag set
+        while (!(I2C1->ISR & I2C_ISR_TXIS_Msk) && !(I2C1->ISR & I2C_ISR_NACKF_Msk));
+        
+        if (I2C1->ISR & I2C_ISR_NACKF_Msk) {
+            return 1; // FAILURE
+        }
+
+        I2C1_SendChar(str[i]);
     }
 
     return 0;

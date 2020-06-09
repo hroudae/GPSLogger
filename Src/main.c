@@ -22,6 +22,7 @@
 #include "openlog.h"
 #include "gps.h"
 #include "fatfs.h"
+#include "stdio.h"
 
 
 // SPI Pins for LCD (SPI2)
@@ -75,29 +76,26 @@ int main(void) {
     OPENLOG_Setup(&sdcard);
 
     LCD_ClearDisplay();
-    LCD_PrintStringCentered("Writing to SD Card");
+    LCD_PrintStringCentered("Here we go");
 
-    char *file = "gps.txt";
-    char *data = "I AM WRITING THIS DATA TO AN SD CARD!\n";
-    OPENLOG_AppendFile(file, data);
+    //char *file = "gps.txt";
+    //char *data = "I AM WRITING THIS DATA TO AN SD CARD!\n";
+    //OPENLOG_AppendFile(file, data);
 
-    LCD_ClearDisplay();
-    LCD_PrintStringCentered("SD CARD WRITTEN!");
-
-    while (1) {    
-        //LEDs toggle every 200ms
+    while (1) {
+        GPS_PollData(NMEA);
         HAL_Delay(2000); // Delay 200ms
         
         // Toggle the output state
         toggleLED(RED_LED);
         toggleLED(BLUE_LED);
 
-        char buf[1024];
-        uint8_t stat = GPS_GetData(buf);
+        NMEA_RMC_MSG rmc;
+        uint8_t stat = GPS_GetData(&rmc);
         if (stat == 1) {
             LCD_ClearDisplay();
             LCD_PrintStringCentered("Error getting data!");
-            while(1);
+            continue;
         }
         else if (stat == 2) {
             LCD_ClearDisplay();
@@ -106,9 +104,13 @@ int main(void) {
         }
         else {
             LCD_ClearDisplay();
-            LCD_PrintStringCentered(buf);
 
-            USART3_SendStr(buf);
+            //char first[32];
+            //snprintf(first, 32, "%02x%02x%02x%02x%02x%02x", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
+            LCD_PrintString("TIME: "); LCD_PrintString(rmc.time);
+            LCD_PrintString(" LAT: "); LCD_PrintString(rmc.lat);
+
+            USART3_SendStr(rmc.time);
         }
     }
 }

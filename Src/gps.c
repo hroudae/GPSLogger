@@ -7,7 +7,7 @@
 #include "string.h"
 #include "lcd.h"
 
-volatile enum PROTOCOL currentProtocol;
+volatile PROTOCOL currentProtocol;
 
 uint32_t UBX_ByteNumber, NMEA_ByteNumber, RTCM_ByteNumber;
 
@@ -38,7 +38,7 @@ void GPS_Setup(GPS *gps) {
 /*
  * Get data from the GPS
  */
-uint8_t GPS_GetData(char *buf) {
+uint8_t GPS_GetData(NMEA_RMC_MSG *buf) {
     // can either get number of bytes available, or poll the data stream register and 0xff means no data
     // if leave off reg addr, will automatically inc until 0xff; default is 0xff so can omit reg addr
 
@@ -55,11 +55,7 @@ uint8_t GPS_GetData(char *buf) {
     if (I2C1_ReadStr(GPS_I2C_ADDR, DATA_STREAM_REG, data_stream, available_bytes)) return 1;
 
     data_stream[available_bytes] = '\0';
-    GPS_ParseData(data_stream);
-
-    buf = data_stream;
-
-    return 0;
+    return GPS_ParseData(data_stream, buf);
 }
 
 /*
@@ -68,18 +64,24 @@ uint8_t GPS_GetData(char *buf) {
  *      ie: $GPGLL,4717.11634,N,00833.91297,E,124923.00,A,A*6E
  *          $xxDTM,datum,subDatum,lat,NS,lon,EW,alt,refDatum*cs<CR><LF>
  */
-void GPS_ParseData(char* data) {
+uint8_t GPS_ParseData(char* data, NMEA_RMC_MSG *buf) {
     uint32_t len = strlen(data);
 
-    return;
+    switch(data[0]) {
+        case '$': currentProtocol = NMEA; NMEA_ByteNumber = 1; return NMEA_ParseData(data, buf);
+        case 0xB5: currentProtocol = UBX; UBX_ByteNumber = 1; break;
+        case 0xD3: currentProtocol = RTCM; RTCM_ByteNumber = 1; break;
+    };
 
-    for (uint32_t i = 0; i < len; i++) {
-        switch(data[i]) {
-            case '$': currentProtocol = NMEA; NMEA_ByteNumber = 1; break;
-            case 0xB5: currentProtocol = UBX; UBX_ByteNumber = 1; break;
-            case 0xD3: currentProtocol = RTCM; RTCM_ByteNumber = 1; break;
+    return 1;
+}
 
-            // TODO PARSE DATA
-        };
-    }
+// SEND POLL REQUEST
+void GPS_PollData(PROTOCOL prot) {
+    switch (prot) {
+        case NMEA: NMEA_PollGNQ("RMC", GPS_I2C_ADDR); break;
+        case NONE:
+        default:
+            return;
+    };
 }

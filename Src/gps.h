@@ -20,7 +20,12 @@
 #define AVAIL_BYTES_LOW_REG  0xFE
 #define DATA_STREAM_REG      0xFF
 
-enum PROTOCOL { NONE, NMEA, UBX, RTCM};
+typedef enum {
+    NONE,
+    NMEA,
+    UBX,
+    RTCM
+} PROTOCOL;
 
 typedef struct {
     uint8_t i2c_scl;
@@ -32,7 +37,8 @@ GPS *thisGPS;
 
 void GPS_Setup(GPS *gps);
 
-uint8_t GPS_GetData(char* buf);
-void GPS_ParseData(char* data);
+uint8_t GPS_GetData(NMEA_RMC_MSG* buf);
+uint8_t GPS_ParseData(char* data, NMEA_RMC_MSG *buf);
+void GPS_PollData(PROTOCOL prot);
 
 #endif /* __GPS_H */
