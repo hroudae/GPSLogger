@@ -8,9 +8,15 @@
 #include "string.h"
 #include "stdlib.h"
 
+#include "lcd.h"
+
  char start = '$';
  char csstart = '*';
  char end[3] = { 0x0D, 0x0A, '\0' }; // <CR><LF>
+
+ char invalidStatus[NMEA_RMC_LEN_STATUS+1] = "V";
+ char noData[NMEA_RMC_LEN_STATUS+1] = "Z";
+ char commError[NMEA_RMC_LEN_STATUS+1] = "Q";
 
 /*
  * Create and send the poll message defined in the struct
@@ -33,69 +39,122 @@ void NMEA_PollGNQ(char* msgid, uint8_t i2caddr) {
     NMEA_PollMsg(&msgstruct, i2caddr);
 }
 
-uint8_t NMEA_ParseData(char* data, NMEA_RMC_MSG *buf) {
+/*
+ * Send a poll message for GP data: $xxGPQ,msgId*cs<CR><LF>
+ */
+void NMEA_PollGPQ(char* msgid, uint8_t i2caddr) {
+    char addr[NMEA_MAX_LEN_ADDR+1];
+    snprintf(addr, NMEA_MAX_LEN_ADDR+1, "%s%s", TALKER_ID_MICROPROC, NMEA_GPQ);
+    int cs = NMEA_Checksum(addr, msgid);
+    NMEA_POLL_MSG msgstruct = { addr, msgid, cs };
+    NMEA_PollMsg(&msgstruct, i2caddr);
+}
+
+/*
+ * Parse the received data
+ */
+NMEA_MSG NMEA_ParseData(char* data) {
     char id[NMEA_MAX_LEN_TALKERID+1];
     char format[NMEA_MAX_LEN_SENTENCE+1];
 
-    for (int i = 1; i < 3; i++)
-        snprintf(id, NMEA_MAX_LEN_TALKERID+1, "%c", data[i]);
-    for (int i = 3; i < 6; i++)
-        snprintf(format, NMEA_MAX_LEN_SENTENCE+1, "%c", data[i]);
+    for (int i = 1, j = 0; i < 3; i++, j++) {
+        id[j] = data[i];
+    }
+    for (int i = 3, j = 0; i < 6; i++, j++) {
+        format[j] = data[i];
+    }
+    id[NMEA_MAX_LEN_TALKERID] = '\0';
+    format[NMEA_MAX_LEN_SENTENCE] = '\0';
 
     if (strcmp(format, NMEA_RMC) == 0) {
-        NMEA_ParseRMCData(data, buf);
-        return 0;
+        return NMEA_ParseRMCData(data);
     }
-    else return 1;
+    else if (strcmp(format, NMEA_GLL) == 0) {
+        return NMEA_ParseGLLData(data);
+    }
+    else {
+        NMEA_MSG msg;
+        snprintf(msg.status, NMEA_RMC_LEN_STATUS+1, "%s", noData);
+        return msg;
+    }
 }
 
-void NMEA_ParseRMCData(char* data, NMEA_RMC_MSG *buf) {
+/*
+ * Parse received RMC data
+ */
+NMEA_MSG NMEA_ParseRMCData(char* data) {
     int len = strlen(data);
     int fieldno = 0;
-    char addr[NMEA_MAX_LEN_ADDR+1];
-    char time[NMEA_RMC_LEN_TIME+1];
-    char status[NMEA_RMC_LEN_STATUS+1];
-    char lat[NMEA_RMC_LEN_LAT+1];
-    char ns[NMEA_RMC_LEN_NS+1];
-    char lon[NMEA_RMC_LEN_LON+1];
-    char ew[NMEA_RMC_LEN_EW+1];
-    char spd[NMEA_RMC_LEN_SPD+1];
-    char cog[NMEA_RMC_LEN_COG+1];
-    char date[NMEA_RMC_LEN_DATE+1];
-    char mv[NMEA_RMC_LEN_MV+1];
-    char mvew[NMEA_RMC_LEN_MV+1];
-    char posmode[NMEA_RMC_LEN_POSMODE+1];
-    char navstatus[NMEA_RMC_LEN_NAVSTATUS+1];
-    char checksum[NMEA_MAX_LEN_CHECKSUM];
+    int charnum = 0;
+    NMEA_MSG rmc;
+    char checksum[NMEA_MAX_LEN_CHECKSUM+1];
 
     for (int i = 1; i < len-NMEA_MAX_LEN_END; i++) {
         if (data[i] == ',' || data[i] == '*') {
-            fieldno++; continue;
+            fieldno++; charnum = 0; continue;
         }
 
         switch(fieldno) {
-            case  0: snprintf(addr, 2, "%c", data[i]); break;
-            case  1: snprintf(time, 2, "%c", data[i]); break;
-            case  2: snprintf(status, 2, "%c", data[i]); break;
-            case  3: snprintf(lat, 2, "%c", data[i]); break;
-            case  4: snprintf(ns, 2, "%c", data[i]); break;
-            case  5: snprintf(lon, 2, "%c", data[i]); break;
-            case  6: snprintf(ew, 2, "%c", data[i]); break;
-            case  7: snprintf(spd, 2, "%c", data[i]); break;
-            case  8: snprintf(cog, 2, "%c", data[i]); break;
-            case  9: snprintf(date, 2, "%c", data[i]); break;
-            case 10: snprintf(mv, 2, "%c", data[i]); break;
-            case 11: snprintf(mvew, 2, "%c", data[i]); break;
-            case 12: snprintf(posmode, 2, "%c", data[i]); break;
-            case 13: snprintf(navstatus, 2, "%c", data[i]); break;
-            case 14: snprintf(checksum, 2, "%c", data[i]); break;
+            case  0: rmc.addr[charnum] = data[i]; rmc.addr[charnum+1] = '\0'; break;
+            case  1: rmc.time[charnum] =  data[i]; rmc.time[charnum+1] = '\0'; break;
+            case  2: rmc.status[charnum] =  data[i]; rmc.status[charnum+1] = '\0'; break;
+            case  3: rmc.lat[charnum] =  data[i]; rmc.lat[charnum+1] = '\0'; break;
+            case  4: rmc.ns[charnum] =  data[i]; rmc.ns[charnum+1] = '\0'; break;
+            case  5: rmc.lon[charnum] =  data[i]; rmc.lon[charnum+1] = '\0'; break;
+            case  6: rmc.ew[charnum] =  data[i]; rmc.ew[charnum+1] = '\0'; break;
+            case  7: rmc.spd[charnum] =  data[i]; rmc.spd[charnum+1] = '\0'; break;
+            case  8: rmc.cog[charnum] =  data[i]; rmc.cog[charnum+1] = '\0'; break;
+            case  9: rmc.date[charnum] =  data[i]; rmc.date[charnum+1] = '\0'; break;
+            case 10: rmc.mv[charnum] =  data[i]; rmc.mv[charnum+1] = '\0'; break;
+            case 11: rmc.mvew[charnum] =  data[i]; rmc.mvew[charnum+1] = '\0'; break;
+            case 12: rmc.posmode[charnum] =  data[i]; rmc.posmode[charnum+1] = '\0'; break;
+            case 13: rmc.navstatus[charnum] =  data[i]; rmc.navstatus[charnum+1] = '\0'; break;
+            case 14: checksum[charnum] =  data[i]; checksum[charnum+1] = '\0'; break;
         };
+
+        charnum++;
     }
 
     int cs = (int) strtol(&checksum[1], NULL, 16);
+    rmc.checksum = cs;
 
-    NMEA_RMC_MSG rmc = { addr, time, status, lat, ns, lon, ew, spd, cog, date, mv, mvew, posmode, navstatus, cs };
-    buf = &rmc;
+    return rmc;
+}
+
+/*
+ * Parse received GLL data
+ */
+NMEA_MSG NMEA_ParseGLLData(char *data) {
+    int len = strlen(data);
+    int fieldno = 0;
+    int charnum = 0;
+    NMEA_MSG gll;
+    char checksum[NMEA_MAX_LEN_CHECKSUM+1];
+
+    for (int i = 1; i < len-NMEA_MAX_LEN_END; i++) {
+        if (data[i] == ',' || data[i] == '*') {
+            fieldno++; charnum = 0; continue;
+        }
+
+        switch(fieldno) {
+            case 0: gll.addr[charnum] = data[i]; gll.addr[charnum+1] = '\0'; break;
+            case 1: gll.lat[charnum] =  data[i]; gll.lat[charnum+1] = '\0'; break;
+            case 2: gll.ns[charnum] =  data[i]; gll.ns[charnum+1] = '\0'; break;
+            case 3: gll.lon[charnum] =  data[i]; gll.lon[charnum+1] = '\0'; break;
+            case 4: gll.ew[charnum] =  data[i]; gll.ew[charnum+1] = '\0'; break;
+            case 5: gll.time[charnum] =  data[i]; gll.time[charnum+1] = '\0'; break;
+            case 6: gll.status[charnum] =  data[i]; gll.status[charnum+1] = '\0'; break;
+            case 7: gll.posmode[charnum] =  data[i]; gll.posmode[charnum+1] = '\0'; break;
+            case 8: checksum[charnum] =  data[i]; checksum[charnum+1] = '\0'; break;
+        };
+
+        charnum++;
+    }
+
+    int cs = (int) strtol(&checksum[1], NULL, 16);
+    gll.checksum = cs;
+
+    return gll;
 }
 
 /*

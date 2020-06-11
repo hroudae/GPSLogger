@@ -45,6 +45,7 @@ Src/usart.c \
 Src/gps.c \
 Src/i2c.c \
 Src/nmea.c \
+Src/ubx.x \
 Src/user_diskio.c \
 Src/fatfs.c \
 Src/stm32f0xx_it.c \

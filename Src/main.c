@@ -23,6 +23,7 @@
 #include "gps.h"
 #include "fatfs.h"
 #include "stdio.h"
+#include "string.h"
 
 
 // SPI Pins for LCD (SPI2)
@@ -61,9 +62,6 @@ int main(void) {
     configGPIOC_output(BLUE_LED);
     configGPIOC_output(ORANGE_LED);
 
-    GPIOC->BSRR = (1 << RED_LED); // Start high
-    GPIOC->BRR = (1 << BLUE_LED); // Start low
-
     // Set up LCD screen
     LCD screen = { SCK_B, MOSI_B, SCE_B, DC_B, RST_B };
     LCD_Setup(&screen);
@@ -81,34 +79,46 @@ int main(void) {
     //char *file = "gps.txt";
     //char *data = "I AM WRITING THIS DATA TO AN SD CARD!\n";
     //OPENLOG_AppendFile(file, data);
+    int numnodata = 0;
 
     while (1) {
-        GPS_PollData(NMEA);
-        HAL_Delay(2000); // Delay 200ms
-        
-        // Toggle the output state
-        toggleLED(RED_LED);
-        toggleLED(BLUE_LED);
+        HAL_Delay(1000);
+        //if (numnodata < 5)
+        //    GPS_PollData(NMEA, NMEA_RMC);
+        //else {
+        //    numnodata = 0;
+        //    GPS_PollData(NMEA, NMEA_GLL);
+       //}
 
-        NMEA_RMC_MSG rmc;
-        uint8_t stat = GPS_GetData(&rmc);
-        if (stat == 1) {
-            LCD_ClearDisplay();
-            LCD_PrintStringCentered("Error getting data!");
+        NMEA_MSG rmc = GPS_GetData_NMEA();
+        if (strcmp(rmc.status, commError) == 0) {
+            //LCD_ClearDisplay();
+            //LCD_PrintStringCentered("Error getting data!");
+            clearLED(ORANGE_LED);
+            clearLED(BLUE_LED);
+            setLED(RED_LED);
             continue;
         }
-        else if (stat == 2) {
-            LCD_ClearDisplay();
-            LCD_PrintStringCentered("no data");   
+        else if (strcmp(rmc.status, noData) == 0) {
+            //LCD_ClearDisplay();
+            //LCD_PrintStringCentered("no data");
+            clearLED(RED_LED);
+            clearLED(BLUE_LED);
+            setLED(ORANGE_LED);
+            numnodata++;
             continue;
         }
         else {
+            clearLED(RED_LED);
+            clearLED(ORANGE_LED);
+            setLED(BLUE_LED);
             LCD_ClearDisplay();
 
             //char first[32];
             //snprintf(first, 32, "%02x%02x%02x%02x%02x%02x", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
             LCD_PrintString("TIME: "); LCD_PrintString(rmc.time);
-            LCD_PrintString(" LAT: "); LCD_PrintString(rmc.lat);
+            LCD_PrintString(" LAT: "); LCD_PrintString(rmc.lat); LCD_PrintString(rmc.ns);
+            LCD_PrintString(" LON: "); LCD_PrintString(rmc.lon); LCD_PrintString(rmc.ew);
 
             USART3_SendStr(rmc.time);
         }

@@ -9,6 +9,7 @@
 
 #include "utilities.h"
 #include "nmea.h"
+#include "ubx.h"
 
 #define GPS_I2C_ADDR 0x42
 
@@ -37,8 +38,8 @@ GPS *thisGPS;
 
 void GPS_Setup(GPS *gps);
 
-uint8_t GPS_GetData(NMEA_RMC_MSG* buf);
-uint8_t GPS_ParseData(char* data, NMEA_RMC_MSG *buf);
-void GPS_PollData(PROTOCOL prot);
+NMEA_MSG GPS_GetData_NMEA(void);
+NMEA_MSG GPS_ParseData_NMEA(char* data);
+void GPS_PollData(PROTOCOL prot, char* msgid);
 
 #endif /* __GPS_H */
