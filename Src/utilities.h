@@ -19,6 +19,15 @@
 #define WRITE 0
 
 
+typedef enum {
+    GPS_DDC,    // I2C, U-Blox calls it DDC in documentation
+    GPS_USART1,
+    GPS_USART2,
+    GPS_USB,
+    GPS_SPI
+} GPS_INTERFACE;
+
+
 // utilities.c
 void setLED(uint8_t led);
 void clearLED(uint8_t led);

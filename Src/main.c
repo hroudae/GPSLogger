@@ -76,19 +76,29 @@ int main(void) {
     LCD_ClearDisplay();
     LCD_PrintStringCentered("Here we go");
 
-    //char *file = "gps.txt";
-    //char *data = "I AM WRITING THIS DATA TO AN SD CARD!\n";
-    //OPENLOG_AppendFile(file, data);
-    int numnodata = 0;
+    // Disable unwanted messages
+    GPS_SetRateNMEA("DTM", GPS_DDC, 0);
+    GPS_SetRateNMEA("GBS", GPS_DDC, 0);
+    GPS_SetRateNMEA("GGA", GPS_DDC, 0);
+    GPS_SetRateNMEA("GLL", GPS_DDC, 0);
+    GPS_SetRateNMEA("GNS", GPS_DDC, 0);
+    GPS_SetRateNMEA("GRS", GPS_DDC, 0);
+    GPS_SetRateNMEA("GSA", GPS_DDC, 0);
+    GPS_SetRateNMEA("GST", GPS_DDC, 0);
+    GPS_SetRateNMEA("GSV", GPS_DDC, 0);
+    GPS_SetRateNMEA("TXT", GPS_DDC, 0);
+    GPS_SetRateNMEA("VLW", GPS_DDC, 0);
+    GPS_SetRateNMEA("VTG", GPS_DDC, 0);
+    GPS_SetRateNMEA("ZDA", GPS_DDC, 0);
+
+    // enable the RMC message once per epoch
+    GPS_SetRateNMEA("RMC", GPS_DDC, 1);
 
     while (1) {
-        HAL_Delay(1000);
-        //if (numnodata < 5)
-        //    GPS_PollData(NMEA, NMEA_RMC);
-        //else {
-        //    numnodata = 0;
-        //    GPS_PollData(NMEA, NMEA_GLL);
-       //}
+        HAL_Delay(500);
+        toggleLED(GREEN_LED);
+        
+        GPS_PollData(NMEA, NMEA_RMC);
 
         NMEA_MSG rmc = GPS_GetData_NMEA();
         if (strcmp(rmc.status, commError) == 0) {
@@ -99,29 +109,30 @@ int main(void) {
             setLED(RED_LED);
             continue;
         }
-        else if (strcmp(rmc.status, noData) == 0) {
+
+        // wait for data to be available
+        while (strcmp(rmc.status, noData) == 0) {
             //LCD_ClearDisplay();
             //LCD_PrintStringCentered("no data");
             clearLED(RED_LED);
             clearLED(BLUE_LED);
             setLED(ORANGE_LED);
-            numnodata++;
-            continue;
+            rmc = GPS_GetData_NMEA();
         }
-        else {
-            clearLED(RED_LED);
-            clearLED(ORANGE_LED);
-            setLED(BLUE_LED);
-            LCD_ClearDisplay();
 
-            //char first[32];
-            //snprintf(first, 32, "%02x%02x%02x%02x%02x%02x", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
-            LCD_PrintString("TIME: "); LCD_PrintString(rmc.time);
-            LCD_PrintString(" LAT: "); LCD_PrintString(rmc.lat); LCD_PrintString(rmc.ns);
-            LCD_PrintString(" LON: "); LCD_PrintString(rmc.lon); LCD_PrintString(rmc.ew);
+        clearLED(RED_LED);
+        clearLED(ORANGE_LED);
+        setLED(BLUE_LED);
 
-            USART3_SendStr(rmc.time);
-        }
+        // print to LCD
+        LCD_ClearDisplay();
+        LCD_PrintString("TIME: "); LCD_PrintString(rmc.time);
+        LCD_PrintString(" LAT: "); LCD_PrintString(rmc.lat); LCD_PrintString(rmc.ns);
+        LCD_PrintString(" LON: "); LCD_PrintString(rmc.lon); LCD_PrintString(rmc.ew);
+
+        // save to SD card
+        USART3_SendStr(rmc.time);
+        USART3_SendStr("\n");
     }
 }
 

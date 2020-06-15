@@ -101,3 +101,10 @@ void GPS_PollData(PROTOCOL prot, char* msgid) {
             return;
     };
 }
+
+/*
+ * Set rate of NMEA messages
+ */
+void GPS_SetRateNMEA(char* msgid, GPS_INTERFACE port, unsigned int rate) {
+    NMEA_SetRate(msgid, port, rate, GPS_I2C_ADDR);
+}

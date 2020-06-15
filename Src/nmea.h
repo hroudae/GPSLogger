@@ -122,4 +122,6 @@ NMEA_MSG NMEA_ParseGLLData(char *data);
 
 int NMEA_Checksum(char* addr, char* msg);
 
+void NMEA_SetRate(char* msgid, GPS_INTERFACE port, unsigned int rate, uint8_t i2caddr);
+
 #endif /* __NMEA_H */

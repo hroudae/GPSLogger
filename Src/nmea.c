@@ -8,15 +8,13 @@
 #include "string.h"
 #include "stdlib.h"
 
-#include "lcd.h"
+char start = '$';
+char csstart = '*';
+char end[3] = { 0x0D, 0x0A, '\0' }; // <CR><LF>
 
- char start = '$';
- char csstart = '*';
- char end[3] = { 0x0D, 0x0A, '\0' }; // <CR><LF>
-
- char invalidStatus[NMEA_RMC_LEN_STATUS+1] = "V";
- char noData[NMEA_RMC_LEN_STATUS+1] = "Z";
- char commError[NMEA_RMC_LEN_STATUS+1] = "Q";
+char invalidStatus[NMEA_RMC_LEN_STATUS+1] = "V";
+char noData[NMEA_RMC_LEN_STATUS+1] = "Z";
+char commError[NMEA_RMC_LEN_STATUS+1] = "Q";
 
 /*
  * Create and send the poll message defined in the struct
@@ -172,4 +170,34 @@ int NMEA_Checksum(char* addr, char* data) {
     }
 
     return checksum;
+}
+
+/*
+ * Set rate of NMEA messages using the PUBX command RATE
+ */
+void NMEA_SetRate(char* msgid, GPS_INTERFACE port, unsigned int rate, uint8_t i2caddr) {
+    char msg[NMEA_MAX_LEN+1];
+    char *addr = "PUBX";
+    char rates[NMEA_MAX_LEN_DATA+1];
+    char payload[NMEA_MAX_LEN_DATA+1] = "40,";
+
+    strncat(payload, msgid, 4);
+
+    switch (port) {
+        case GPS_DDC:    snprintf(rates, NMEA_MAX_LEN_DATA, ",%u,,,,,", rate); break;
+        case GPS_USART1: snprintf(rates, NMEA_MAX_LEN_DATA, ",,%u,,,,", rate); break;
+        case GPS_USART2: snprintf(rates, NMEA_MAX_LEN_DATA, ",,,%u,,,", rate); break;
+        case GPS_USB:    snprintf(rates, NMEA_MAX_LEN_DATA, ",,,,%u,,", rate); break;
+        case GPS_SPI:    snprintf(rates, NMEA_MAX_LEN_DATA, ",,,,,%u,", rate); break;
+        default:         snprintf(rates, NMEA_MAX_LEN_DATA, ",,,,,,"); break;
+    }
+
+    strncat(payload, rates, NMEA_MAX_LEN_DATA);
+    strncat(payload, "0", 2); // reserved character, always 0
+
+    int checksum = NMEA_Checksum(addr, payload);
+    
+    snprintf(msg, NMEA_MAX_LEN, "%c%s,%s%c%02x%s", start, addr, payload, csstart, checksum, end);
+
+    I2C1_WriteStrNoReg(i2caddr, msg);
 }

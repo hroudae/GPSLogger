@@ -41,5 +41,6 @@ void GPS_Setup(GPS *gps);
 NMEA_MSG GPS_GetData_NMEA(void);
 NMEA_MSG GPS_ParseData_NMEA(char* data);
 void GPS_PollData(PROTOCOL prot, char* msgid);
+void GPS_SetRateNMEA(char* msgid, GPS_INTERFACE port, unsigned int rate);
 
 #endif /* __GPS_H */
