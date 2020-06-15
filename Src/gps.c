@@ -5,8 +5,10 @@
  */
 #include "gps.h"
 #include "string.h"
+#include "lcd.h"
+#include "stdio.h"
 
-volatile enum PROTOCOL currentProtocol;
+volatile PROTOCOL currentProtocol;
 
 uint32_t UBX_ByteNumber, NMEA_ByteNumber, RTCM_ByteNumber;
 
@@ -37,23 +39,38 @@ void GPS_Setup(GPS *gps) {
 /*
  * Get data from the GPS
  */
-void GPS_GetData(char *buf) {
+NMEA_MSG GPS_GetData_NMEA() {
     // can either get number of bytes available, or poll the data stream register and 0xff means no data
     // if leave off reg addr, will automatically inc until 0xff; default is 0xff so can omit reg addr
+    NMEA_MSG msg;
 
     // Get available bytes
     uint32_t available_bytes = 0;
     char available_high[2], available_low[2];
-    if (I2C1_ReadStr(GPS_I2C_ADDR, AVAIL_BYTES_HIGH_REG, available_high, 1)) return; // something went wrong
-    if (I2C1_ReadStr(GPS_I2C_ADDR, AVAIL_BYTES_LOW_REG, available_low, 1)) return; // something went wrong
-    available_bytes = ((uint32_t)available_high[0] << 8) | (uint32_t)available_low[1];
+    if (I2C1_ReadStr(GPS_I2C_ADDR, AVAIL_BYTES_HIGH_REG, available_high, 1)) { // something went wrong
+        snprintf(msg.status, NMEA_RMC_LEN_STATUS+1, "%s", commError);
+        return msg;
+    }
+    if (I2C1_ReadStr(GPS_I2C_ADDR, AVAIL_BYTES_LOW_REG, available_low, 1)) { // something went wrong
+        snprintf(msg.status, NMEA_RMC_LEN_STATUS+1, "%s", commError);
+        return msg;
+    }
+    available_bytes = ((uint32_t)available_high[0] << 8) | (uint32_t)available_low[0];
+
+    if (available_bytes == 0) { // no data available
+        snprintf(msg.status, NMEA_RMC_LEN_STATUS+1, "%s", noData);
+        return msg;
+    }
     
     char data_stream[available_bytes+1];
-    if (I2C1_ReadStr(GPS_I2C_ADDR, DATA_STREAM_REG, data_stream, available_bytes)) return;
+    if (I2C1_ReadStr(GPS_I2C_ADDR, DATA_STREAM_REG, data_stream, available_bytes)) {
+        snprintf(msg.status, NMEA_RMC_LEN_STATUS+1, "%s", commError);
+        return msg;
+    }
 
-    GPS_ParseData(data_stream);
-
-    buf = data_stream;
+    data_stream[available_bytes] = '\0';
+    // LCD_ClearDisplay(); LCD_PrintStringCentered("parse");
+    return GPS_ParseData_NMEA(data_stream);
 }
 
 /*
@@ -62,16 +79,32 @@ void GPS_GetData(char *buf) {
  *      ie: $GPGLL,4717.11634,N,00833.91297,E,124923.00,A,A*6E
  *          $xxDTM,datum,subDatum,lat,NS,lon,EW,alt,refDatum*cs<CR><LF>
  */
-void GPS_ParseData(char* data) {
-    uint32_t len = strlen(data);
+NMEA_MSG GPS_ParseData_NMEA(char* data) {
+    NMEA_MSG msg;
 
-    for (uint32_t i = 0; i < len; i++) {
-        switch(data[i]) {
-            case '$': currentProtocol = NMEA; NMEA_ByteNumber = 1; break;
-            case 0xB5: currentProtocol = UBX; UBX_ByteNumber = 1; break;
-            case 0xD3: currentProtocol = RTCM; RTCM_ByteNumber = 1; break;
-
-            // TODO PARSE DATA
-        };
+    if (data[0] != '$') {
+        snprintf(msg.status, NMEA_RMC_LEN_STATUS+1, "%s", commError);
+        return msg;
     }
+    
+    return NMEA_ParseData(data);
+}
+
+/*
+ * Send poll request for msgid to gps
+ */
+void GPS_PollData(PROTOCOL prot, char* msgid) {
+    switch (prot) {
+        case NMEA: NMEA_PollGNQ(msgid, GPS_I2C_ADDR); break;
+        case NONE:
+        default:
+            return;
+    };
+}
+
+/*
+ * Set rate of NMEA messages
+ */
+void GPS_SetRateNMEA(char* msgid, GPS_INTERFACE port, unsigned int rate) {
+    NMEA_SetRate(msgid, port, rate, GPS_I2C_ADDR);
 }

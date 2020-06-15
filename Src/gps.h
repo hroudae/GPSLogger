@@ -8,6 +8,8 @@
 #define __GPS_H
 
 #include "utilities.h"
+#include "nmea.h"
+#include "ubx.h"
 
 #define GPS_I2C_ADDR 0x42
 
@@ -19,7 +21,12 @@
 #define AVAIL_BYTES_LOW_REG  0xFE
 #define DATA_STREAM_REG      0xFF
 
-enum PROTOCOL { NONE, NMEA, UBX, RTCM};
+typedef enum {
+    NONE,
+    NMEA,
+    UBX,
+    RTCM
+} PROTOCOL;
 
 typedef struct {
     uint8_t i2c_scl;
@@ -31,7 +38,9 @@ GPS *thisGPS;
 
 void GPS_Setup(GPS *gps);
 
-void GPS_GetData(char* buf);
-void GPS_ParseData(char* data);
+NMEA_MSG GPS_GetData_NMEA(void);
+NMEA_MSG GPS_ParseData_NMEA(char* data);
+void GPS_PollData(PROTOCOL prot, char* msgid);
+void GPS_SetRateNMEA(char* msgid, GPS_INTERFACE port, unsigned int rate);
 
-#endif /* __OGPS_H */
+#endif /* __GPS_H */

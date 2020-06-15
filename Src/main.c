@@ -22,6 +22,8 @@
 #include "openlog.h"
 #include "gps.h"
 #include "fatfs.h"
+#include "stdio.h"
+#include "string.h"
 
 
 // SPI Pins for LCD (SPI2)
@@ -60,36 +62,77 @@ int main(void) {
     configGPIOC_output(BLUE_LED);
     configGPIOC_output(ORANGE_LED);
 
-    GPIOC->BSRR = (1 << RED_LED); // Start high
-    GPIOC->BRR = (1 << BLUE_LED); // Start low
-
     // Set up LCD screen
     LCD screen = { SCK_B, MOSI_B, SCE_B, DC_B, RST_B };
     LCD_Setup(&screen);
+
+    GPS gps = { SCL_B, SDA_B };
+    GPS_Setup(&gps);
 
     // Setup OpenLog
     OPENLOG sdcard = { TX_B, RX_B, RTS_B, 9600 };
     OPENLOG_Setup(&sdcard);
 
     LCD_ClearDisplay();
-    LCD_PrintStringCentered("Writing to SD Card");
+    LCD_PrintStringCentered("Here we go");
 
-    char *file = "gps.txt";
-    char *data = "I AM WRITING THIS DATA TO AN SD CARD!\n";
-    OPENLOG_AppendFile(file, data);
+    // Disable unwanted messages
+    GPS_SetRateNMEA("DTM", GPS_DDC, 0);
+    GPS_SetRateNMEA("GBS", GPS_DDC, 0);
+    GPS_SetRateNMEA("GGA", GPS_DDC, 0);
+    GPS_SetRateNMEA("GLL", GPS_DDC, 0);
+    GPS_SetRateNMEA("GNS", GPS_DDC, 0);
+    GPS_SetRateNMEA("GRS", GPS_DDC, 0);
+    GPS_SetRateNMEA("GSA", GPS_DDC, 0);
+    GPS_SetRateNMEA("GST", GPS_DDC, 0);
+    GPS_SetRateNMEA("GSV", GPS_DDC, 0);
+    GPS_SetRateNMEA("TXT", GPS_DDC, 0);
+    GPS_SetRateNMEA("VLW", GPS_DDC, 0);
+    GPS_SetRateNMEA("VTG", GPS_DDC, 0);
+    GPS_SetRateNMEA("ZDA", GPS_DDC, 0);
 
-    LCD_ClearDisplay();
-    LCD_PrintStringCentered("SD CARD WRITTEN!");
+    // enable the RMC message once per epoch
+    GPS_SetRateNMEA("RMC", GPS_DDC, 1);
 
-    while (1) {    
-        //LEDs toggle every 200ms
-        HAL_Delay(2000); // Delay 200ms
+    while (1) {
+        HAL_Delay(500);
+        toggleLED(GREEN_LED);
         
-        // Toggle the output state
-        toggleLED(RED_LED);
-        toggleLED(BLUE_LED);
+        GPS_PollData(NMEA, NMEA_RMC);
 
-        USART3_SendStr("HI!\n");
+        NMEA_MSG rmc = GPS_GetData_NMEA();
+        if (strcmp(rmc.status, commError) == 0) {
+            //LCD_ClearDisplay();
+            //LCD_PrintStringCentered("Error getting data!");
+            clearLED(ORANGE_LED);
+            clearLED(BLUE_LED);
+            setLED(RED_LED);
+            continue;
+        }
+
+        // wait for data to be available
+        while (strcmp(rmc.status, noData) == 0) {
+            //LCD_ClearDisplay();
+            //LCD_PrintStringCentered("no data");
+            clearLED(RED_LED);
+            clearLED(BLUE_LED);
+            setLED(ORANGE_LED);
+            rmc = GPS_GetData_NMEA();
+        }
+
+        clearLED(RED_LED);
+        clearLED(ORANGE_LED);
+        setLED(BLUE_LED);
+
+        // print to LCD
+        LCD_ClearDisplay();
+        LCD_PrintString("TIME: "); LCD_PrintString(rmc.time);
+        LCD_PrintString(" LAT: "); LCD_PrintString(rmc.lat); LCD_PrintString(rmc.ns);
+        LCD_PrintString(" LON: "); LCD_PrintString(rmc.lon); LCD_PrintString(rmc.ew);
+
+        // save to SD card
+        USART3_SendStr(rmc.time);
+        USART3_SendStr("\n");
     }
 }
 

@@ -19,6 +19,15 @@
 #define WRITE 0
 
 
+typedef enum {
+    GPS_DDC,    // I2C, U-Blox calls it DDC in documentation
+    GPS_USART1,
+    GPS_USART2,
+    GPS_USB,
+    GPS_SPI
+} GPS_INTERFACE;
+
+
 // utilities.c
 void setLED(uint8_t led);
 void clearLED(uint8_t led);
@@ -37,6 +46,7 @@ void I2C1_TransactionSetup(uint8_t addr, uint8_t bytes, uint8_t rdwr);
 void I2C1_SendStopCondition(void);
 void I2C1_SendChar(char c);
 uint8_t I2C1_WriteStr(uint32_t addr, uint8_t reg, char *str);
+uint8_t I2C1_WriteStrNoReg(uint32_t addr, char *str);
 uint8_t I2C1_ReadStr(uint32_t addr, uint8_t reg, char str[], uint8_t bytes);
 
 // pincofing.c
