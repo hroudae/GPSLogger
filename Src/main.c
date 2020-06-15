@@ -24,6 +24,7 @@
 #include "fatfs.h"
 #include "stdio.h"
 #include "string.h"
+#include "stdlib.h"
 
 
 // SPI Pins for LCD (SPI2)
@@ -73,6 +74,13 @@ int main(void) {
     OPENLOG sdcard = { TX_B, RX_B, RTS_B, 9600 };
     OPENLOG_Setup(&sdcard);
 
+    char *file = "trail.gpx";
+    char *setupText = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                      "<gpx version=\"1.0\">\n"
+                      "\t<name>track 1 gpx</name>\n"
+                      "\t<trk><name>track 1</name><number>1</number><trkseg>\n";
+    OPENLOG_AppendFile(file, setupText);
+
     LCD_ClearDisplay();
     LCD_PrintStringCentered("Here we go");
 
@@ -95,7 +103,7 @@ int main(void) {
     GPS_SetRateNMEA("RMC", GPS_DDC, 1);
 
     while (1) {
-        HAL_Delay(500);
+        HAL_Delay(5000);
         toggleLED(GREEN_LED);
         
         GPS_PollData(NMEA, NMEA_RMC);
@@ -111,7 +119,7 @@ int main(void) {
         }
 
         // wait for data to be available
-        while (strcmp(rmc.status, noData) == 0) {
+        while (strcmp(rmc.status, noData) == 0 || strcmp(rmc.status, invalidStatus) == 0) {
             //LCD_ClearDisplay();
             //LCD_PrintStringCentered("no data");
             clearLED(RED_LED);
@@ -126,13 +134,45 @@ int main(void) {
 
         // print to LCD
         LCD_ClearDisplay();
-        LCD_PrintString("TIME: "); LCD_PrintString(rmc.time);
-        LCD_PrintString(" LAT: "); LCD_PrintString(rmc.lat); LCD_PrintString(rmc.ns);
-        LCD_PrintString(" LON: "); LCD_PrintString(rmc.lon); LCD_PrintString(rmc.ew);
+        // LCD_PrintString("TIME: "); LCD_PrintString(rmc.time);
+        // LCD_PrintString(" LAT: "); LCD_PrintString(rmc.lat); LCD_PrintString(rmc.ns);
+        // LCD_PrintString(" LON: "); LCD_PrintString(rmc.lon); LCD_PrintString(rmc.ew);
 
         // save to SD card
-        USART3_SendStr(rmc.time);
-        USART3_SendStr("\n");
+        char latmin[3];
+        char latdeg[9];
+        char lonmin[4];
+        char londeg[9];
+        char buff[2048];
+
+        snprintf(latmin, 3, "%c%c", rmc.lat[0], rmc.lat[1]);
+        snprintf(latdeg, 9, "%c%c%c%c%c%c%c%c", rmc.lat[2], rmc.lat[3], rmc.lat[4], rmc.lat[5], rmc.lat[6], rmc.lat[7], rmc.lat[8], rmc.lat[9]);
+
+        snprintf(lonmin, 4, "%c%c%c", rmc.lon[0], rmc.lon[1], rmc.lon[2]);
+        snprintf(londeg, 9, "%c%c%c%c%c%c%c%c", rmc.lat[3], rmc.lat[4], rmc.lat[5], rmc.lat[6], rmc.lat[7], rmc.lat[8], rmc.lat[9], rmc.lat[10]);
+
+        float latdec = atof(latdeg);// / 60.0;
+        float londec = atof(londeg);// / 60.0;
+
+        char latstr[20], lonstr[20];
+        snprintf(latstr, 63, "%s=%.8f", latdeg, latdec);
+        snprintf(lonstr, 64, "%s=%.8f", londeg, londec);
+        LCD_PrintString(" LAT: "); LCD_PrintString(latstr);
+        LCD_PrintString(" LON: "); LCD_PrintString(lonstr);
+
+        float lat = atof(latmin) + latdec;
+        float lon = atof(lonmin) + londec;
+
+        // char latstr[20], lonstr[20];
+        // snprintf(latstr, 20, "%f", lat);
+        // snprintf(lonstr, 20, "%f", lon);
+        // LCD_PrintString(" LAT: "); LCD_PrintString(latstr);
+        // LCD_PrintString(" LON: "); LCD_PrintString(lonstr);
+
+        snprintf(buff, 2048, "\t\t<trkpt lat=\"%f\" lon=\"%f\"><ele>%s</ele><time>20%c%c-%c%c-%c%cT%c%c:%c%c:%c%cZ</time></trkpt>\n",
+                lat, lon, "0", rmc.date[0], rmc.date[1], rmc.date[2], rmc.date[3], rmc.date[4], rmc.date[5], \
+                rmc.time[0], rmc.time[1], rmc.time[2], rmc.time[3], rmc.time[4], rmc.time[5]);
+        //USART3_SendStr(buff);
     }
 }
 
