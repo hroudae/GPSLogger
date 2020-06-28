@@ -7,6 +7,20 @@
 
 
 /*
+ * Set up the USER button on pin PA0
+ * Configures pin to input, low-speed, and pull-down resistor
+ */
+void configUserButton(void) {
+	// Set to digital input
+	GPIOA->MODER &= ~((1) | (1 << 1));
+	// Set to low speed
+	GPIOA->OSPEEDR &= ~((1) | (1 << 1));
+	// Set to pull-down resistor
+	GPIOA->PUPDR |= (1 << 1);
+	GPIOA->PUPDR &= ~(1);
+}
+
+/*
  * Generic GPIOB configuration function
  * Pass in the pin number, x, of the GPIO on PBx
  * Configures pin to general-pupose output mode, push-pull output,

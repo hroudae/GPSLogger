@@ -5,8 +5,8 @@
  * https://www.sparkfun.com/products/13712
  */
 #include "openlog.h"
-#include "stdio.h"
 #include "lcd.h"
+#include <stdio.h>
 
 volatile enum MODE mode;
 
@@ -18,6 +18,9 @@ const char *ENT_CMD_MD_OK = "~>";
 
 uint8_t init_cmd_md_frame;
 const char *INIT_CMD_MD_OK = "\r\n<";
+
+uint8_t rm_rply_md_frame;
+const char *RM_RPLY_MD_ERR = "\r\n!>";
 
 /*
  * Setup the USART3 subsytem and the GPIO pins
@@ -47,13 +50,8 @@ void OPENLOG_Setup(OPENLOG *openLog) {
     NVIC_EnableIRQ(USART3_4_IRQn);
 	NVIC_SetPriority(USART3_4_IRQn, 0);
 
-    LCD_ClearDisplay();
-    LCD_PrintStringCentered("ABOUT TO RST");
     HAL_Delay(100);
-
     OPENLOG_ResetSequence();
-    LCD_ClearDisplay();
-    LCD_PrintStringCentered("RST DONE");
 }
 
 /*
@@ -86,7 +84,6 @@ void OPENLOG_USART3ReceivedInterrupt() {
     else if (mode == RST_SEQ && rst_seq_frame == 2) {
         setLED(GREEN_LED);
         mode = RDY;
-        LCD_ClearDisplay();LCD_PrintStringCentered("RDY");
     }
     // if trying to enter command mode, a ~> means OpenLog is now in command mode and
     // ready to receive commands
@@ -97,13 +94,19 @@ void OPENLOG_USART3ReceivedInterrupt() {
     else if (mode == ENT_CMD && ent_cmd_md_frame == 1) {
         setLED(ORANGE_LED);
         mode = CMD_RDY;
-        LCD_ClearDisplay();LCD_PrintStringCentered("CMD RDY");
     }
     else if (mode == INIT_CMD && recvValue != INIT_CMD_MD_OK[init_cmd_md_frame]) {LCD_ClearDisplay();LCD_PrintStringCentered("INIT CMD MD ERROR");while(1);}
     else if (mode == INIT_CMD && init_cmd_md_frame < 2) {
         init_cmd_md_frame++;
     }
     else if (mode == INIT_CMD && init_cmd_md_frame == 2) {
+        mode = RDY;
+    }
+    else if (mode == RM_RPLY && recvValue != RM_RPLY_MD_ERR[rm_rply_md_frame]) {LCD_ClearDisplay();LCD_PrintStringCentered("RM RPLY ERR");while(1);}
+    else if (mode == RM_RPLY && rm_rply_md_frame < 3) {
+        rm_rply_md_frame++;
+    }
+    else if (mode == RM_RPLY && rm_rply_md_frame == 3) {
         mode = RDY;
     }
 }
@@ -135,6 +138,24 @@ void OPENLOG_NewFile(char* name) {
 }
 
 /*
+ * Remove a file from the SD card
+ */
+void OPENLOG_RemoveFile(char* name) {
+    if (mode != CMD_RDY) {
+        OPENLOG_EnterCommandMode();
+        while (mode != CMD_RDY);
+    }
+
+    mode = RM_RPLY; // OpenLog replies \r\n!> need to wait for it
+    rm_rply_md_frame = 0;
+    char cmd[32];
+    sprintf(cmd, "rm %s\r", name);
+    USART3_SendStr(cmd);
+
+    while (mode != RDY);
+}
+
+/*
  * Append text to the end of a file. If the file does not exist, it is created. msg needs to be null terminated
  */
 void OPENLOG_AppendFile(char* name, char* msg) {
@@ -142,8 +163,6 @@ void OPENLOG_AppendFile(char* name, char* msg) {
         OPENLOG_EnterCommandMode();
         while (mode != CMD_RDY);
     }
-
-    LCD_ClearDisplay();LCD_PrintStringCentered("SENDING CMD");
 
     mode = INIT_CMD;
     init_cmd_md_frame = 0;

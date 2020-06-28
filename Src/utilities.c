@@ -3,7 +3,7 @@
  * Purpose: Define common functions
  */
 #include "utilities.h"
-
+#include <math.h>
 
 /*
  * Set the sepcified LED
@@ -48,4 +48,20 @@ uint8_t uintToStr(char *buf, uint16_t number) {
     }
     
     return charsWritten;
+}
+
+/*
+ * Configure peripherals to generate interrupt on rising edge of user button
+ */
+void configUserButtonInterrupt(void) {
+	// EXTI configuration
+	EXTI->IMR |= 1;	// Unmask Line 0 interrupt
+	EXTI->RTSR |= 1; // Enable rising edge trigger for Line 0
+	
+	// SYSCFG configuration
+	SYSCFG->EXTICR[0] &= ~(0xF);	// EXTI0 to PA0
+	
+	// NVIC configuration
+	NVIC_EnableIRQ(EXTI0_1_IRQn);
+	NVIC_SetPriority(EXTI0_1_IRQn, 1);
 }

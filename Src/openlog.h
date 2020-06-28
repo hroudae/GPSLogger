@@ -13,7 +13,7 @@
 #define MAX_FILE_NAME_LENGTH 12
 
 enum FILE_TYPE { ASCII=1, HEX=2, RAW=3};
-enum MODE { RST_SEQ, RDY, ENT_CMD, INIT_CMD, CMD_RDY };
+enum MODE { RST_SEQ, RDY, ENT_CMD, INIT_CMD, CMD_RDY, RM_RPLY };
 
 // Holds UART pin and baud rate information
 typedef struct {        // OpenLog pins
@@ -37,12 +37,7 @@ void OPENLOG_EnterCommandMode(void);
 // file manipulation functions
 void OPENLOG_NewFile(char* name);
 void OPENLOG_AppendFile(char* name, char* msg);
-/* TODO
-void OPENLOG_WriteFile(char* name, uint8_t len, uint32_t offset, char* msg);
-void OPENLOG_RemoveFile(char* name, uint8_t len);
-uint32_t OPENLOG_FileSize(char* name, uint8_t len);
-char* OPENLOG_ReadFile(char* name, uint8_t len, uint32_t start, uint32_t length, FILE_TYPE type);
-*/
+void OPENLOG_RemoveFile(char* name);
 
 // low level functions
 void OPENLOG_Init(void);

@@ -3,7 +3,7 @@
  * Purpose: Define the utility functions pertaining to the I2C1 peripheral
  */
 #include "utilities.h"
-#include "string.h"
+#include <string.h>
 
 /*
  * Configures the I2C1 peripheral to 100kHz

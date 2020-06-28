@@ -34,6 +34,10 @@ void clearLED(uint8_t led);
 void toggleLED(uint8_t led);
 
 uint8_t uintToStr(char* buf, uint16_t number);
+float strToFloat(char* str);
+void floatToStr(char* buf, float num, int numplaces);
+
+void configUserButtonInterrupt(void);
 
 // usart.c
 void USART3_SetBaudRate(uint32_t rate);
@@ -50,6 +54,8 @@ uint8_t I2C1_WriteStrNoReg(uint32_t addr, char *str);
 uint8_t I2C1_ReadStr(uint32_t addr, uint8_t reg, char str[], uint8_t bytes);
 
 // pincofing.c
+// GPIOA pins
+void configUserButton(void); // PA0
 // GPIOB pins
 void configGPIOB_output(uint8_t pin);
 void configPinB_AF0(uint8_t x);
