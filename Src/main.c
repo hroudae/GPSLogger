@@ -22,8 +22,9 @@
 #include "openlog.h"
 #include "gps.h"
 #include "fatfs.h"
-#include "stdio.h"
-#include "string.h"
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
 
 // SPI Pins for LCD (SPI2)
@@ -45,6 +46,8 @@
 
 void SystemClock_Config(void);
 
+volatile int recorddata = 0;
+
 /**
   * @brief  The application entry point.
   * @retval int
@@ -55,12 +58,18 @@ int main(void) {
     MX_FATFS_Init();
 
     RCC->AHBENR |= RCC_AHBENR_GPIOCEN; // Enable GPIOC clock in RCC for LEDS
+    RCC->AHBENR |= RCC_AHBENR_GPIOAEN; // Enable GPIOA clock in RCC for User button
 
     // initialize LEDs
     configGPIOC_output(RED_LED);
     configGPIOC_output(GREEN_LED);
     configGPIOC_output(BLUE_LED);
     configGPIOC_output(ORANGE_LED);
+    
+    // set upt user button and interrupt
+    configUserButton();
+    configUserButtonInterrupt();
+    
 
     // Set up LCD screen
     LCD screen = { SCK_B, MOSI_B, SCE_B, DC_B, RST_B };
@@ -72,9 +81,6 @@ int main(void) {
     // Setup OpenLog
     OPENLOG sdcard = { TX_B, RX_B, RTS_B, 9600 };
     OPENLOG_Setup(&sdcard);
-
-    LCD_ClearDisplay();
-    LCD_PrintStringCentered("Here we go");
 
     // Disable unwanted messages
     GPS_SetRateNMEA("DTM", GPS_DDC, 0);
@@ -94,16 +100,18 @@ int main(void) {
     // enable the RMC message once per epoch
     GPS_SetRateNMEA("RMC", GPS_DDC, 1);
 
+    LCD_ClearDisplay();
+    LCD_PrintStringCentered("Ready! Press button to record.");
+
     while (1) {
-        HAL_Delay(500);
+        while (recorddata == 0);
+        HAL_Delay(5000);
         toggleLED(GREEN_LED);
         
         GPS_PollData(NMEA, NMEA_RMC);
 
         NMEA_MSG rmc = GPS_GetData_NMEA();
         if (strcmp(rmc.status, commError) == 0) {
-            //LCD_ClearDisplay();
-            //LCD_PrintStringCentered("Error getting data!");
             clearLED(ORANGE_LED);
             clearLED(BLUE_LED);
             setLED(RED_LED);
@@ -111,12 +119,11 @@ int main(void) {
         }
 
         // wait for data to be available
-        while (strcmp(rmc.status, noData) == 0) {
-            //LCD_ClearDisplay();
-            //LCD_PrintStringCentered("no data");
+        while (strcmp(rmc.status, noData) == 0 || strcmp(rmc.status, invalidStatus) == 0) {
             clearLED(RED_LED);
             clearLED(BLUE_LED);
             setLED(ORANGE_LED);
+            HAL_Delay(100);
             rmc = GPS_GetData_NMEA();
         }
 
@@ -124,17 +131,72 @@ int main(void) {
         clearLED(ORANGE_LED);
         setLED(BLUE_LED);
 
-        // print to LCD
+        // save to SD card
+        char latmin[3];
+        char latdeg[9];
+        char lonmin[4];
+        char londeg[9];
+        char buff[2048];
+
+        snprintf(latmin, 3, "%c%c", rmc.lat[0], rmc.lat[1]);
+        snprintf(latdeg, 9, "%c%c%c%c%c%c%c%c", rmc.lat[2], rmc.lat[3], rmc.lat[4], rmc.lat[5], rmc.lat[6], rmc.lat[7], rmc.lat[8], rmc.lat[9]);
+
+        snprintf(lonmin, 4, "%c%c%c", rmc.lon[0], rmc.lon[1], rmc.lon[2]);
+        snprintf(londeg, 9, "%c%c%c%c%c%c%c%c", rmc.lon[3], rmc.lon[4], rmc.lon[5], rmc.lon[6], rmc.lon[7], rmc.lon[8], rmc.lon[9], rmc.lon[10]);
+
+        float latdec = atof(latdeg) / 60.0;
+        float londec = atof(londeg) / 60.0;
+
+        char latstr[12], lonstr[12];
+        snprintf(latstr, 2048, "%d.%07u", rmc.ns[0] == 'N' ? atoi(latmin) : -1*atoi(latmin), (int) ((latdec - (int) latdec) * 10000000));
+        snprintf(lonstr, 2048, "%d.%07u", rmc.ew[0] == 'E' ? atoi(lonmin) : -1*atoi(lonmin), (int) ((londec - (int) londec) * 10000000));
+
+        snprintf(buff, 2048, "\t\t<trkpt lat=\"%s\" lon=\"%s\"><ele>%s</ele><time>20%c%c-%c%c-%c%cT%c%c:%c%c:%c%cZ</time></trkpt>\n",
+                latstr, lonstr, "0", rmc.date[0], rmc.date[1], rmc.date[2], rmc.date[3], rmc.date[4], rmc.date[5], \
+                rmc.time[0], rmc.time[1], rmc.time[2], rmc.time[3], rmc.time[4], rmc.time[5]);
+        USART3_SendStr(buff);
+
+        // Print to screen
         LCD_ClearDisplay();
         LCD_PrintString("TIME: "); LCD_PrintString(rmc.time);
-        LCD_PrintString(" LAT: "); LCD_PrintString(rmc.lat); LCD_PrintString(rmc.ns);
-        LCD_PrintString(" LON: "); LCD_PrintString(rmc.lon); LCD_PrintString(rmc.ew);
-
-        // save to SD card
-        USART3_SendStr(rmc.time);
-        USART3_SendStr("\n");
+        LCD_PrintString(" LAT: "); LCD_PrintString(latstr);
+        LCD_PrintString(" LON: "); LCD_PrintString(lonstr);
     }
 }
+
+/*
+ * EXTI0 and EXTI1 interrupt request handler for User Button
+ */
+void EXTI0_1_IRQHandler(void) {
+    if (recorddata == 0) { // first time through, delete file and write start of track
+        char *file = "trail.gpx";
+        char *setupText = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                          "<gpx version=\"1.0\">\n"
+                          "\t<name>track 1 gpx</name>\n"
+                          "\t<trk><name>track 1</name><number>1</number><trkseg>\n";
+        OPENLOG_RemoveFile(file); // TODO wait for OpenLog reply
+        OPENLOG_AppendFile(file, setupText);
+
+        recorddata = 1;
+
+        LCD_ClearDisplay();
+        LCD_PrintStringCentered("Waiting for sats!");
+    }
+    else { // stop recordering data and end track
+        char *endtags = "\t</trkseg></trk>\n"
+                        "</gpx>\n";
+        USART3_SendStr(endtags);
+        recorddata = 0;
+
+        LCD_ClearDisplay();
+        LCD_PrintStringCentered("Recording ended!");
+        while(1);
+    }
+
+    EXTI->PR |= 1;
+}
+	
+	
 
 
 /**

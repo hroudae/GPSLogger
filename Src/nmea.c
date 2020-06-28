@@ -4,9 +4,9 @@
  * https://en.wikipedia.org/wiki/NMEA_0183#Message_structure
  */
 #include "nmea.h"
-#include "stdio.h"
-#include "string.h"
-#include "stdlib.h"
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
 char start = '$';
 char csstart = '*';

@@ -4,9 +4,9 @@
  *          via I2C1
  */
 #include "gps.h"
-#include "string.h"
+#include <string.h>
 #include "lcd.h"
-#include "stdio.h"
+#include <stdio.h>
 
 volatile PROTOCOL currentProtocol;
 

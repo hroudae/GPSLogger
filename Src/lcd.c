@@ -5,7 +5,7 @@
  *          using GPIOB pins.
  */
 #include "lcd.h"
-#include "string.h"
+#include <string.h>
 
 LCD *thisScreen;
 
